@@ -1,0 +1,9 @@
+﻿Analyzing dashboard...
+
+   info - presentation\dashboard_screen.dart:228:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - presentation\widgets\ai_assistant_sheet.dart:353:30 - Unnecessary use of multiple underscores. Try using '_'. - unnecessary_underscores
+   info - presentation\widgets\dream_summary_card.dart:71:44 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - presentation\widgets\readiness_arc_hero.dart:87:43 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - presentation\widgets\readiness_arc_hero.dart:286:30 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+
+5 issues found.
