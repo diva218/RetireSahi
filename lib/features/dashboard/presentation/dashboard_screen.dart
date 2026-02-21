@@ -14,6 +14,8 @@ import 'widgets/readiness_arc_hero.dart';
 import 'widgets/quick_stats_row.dart';
 import 'widgets/dream_summary_card.dart';
 import 'widgets/ai_assistant_sheet.dart';
+import 'widgets/biggest_lever_card.dart';
+import 'widgets/what_if_simulator.dart';
 
 /// The fully-built NPS Pulse Dashboard screen.
 /// Replaces the placeholder dashboard_home_screen.dart entirely.
@@ -183,6 +185,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                 ),
                 const SizedBox(height: 16),
 
+                // Biggest Lever
+                const BiggestLeverCard(),
+                const SizedBox(height: 16),
+
                 // ── SECTION 4: Quick Stats Row
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -215,6 +221,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                     visible: _snapshotVisible,
                   ),
                 ),
+
+                const SizedBox(height: 24),
+
+                // ── SECTION 7: What If Simulator
+                const WhatIfSimulator(),
+                const SizedBox(height: 40),
               ],
             ),
           ),

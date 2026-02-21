@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../features/onboarding/domain/onboarding_state.dart';
 import '../../../../features/onboarding/presentation/onboarding_provider.dart';
+import '../../../../core/utils/retirement_calculator.dart';
 
 // ─────────────────────────────────────────────────────────────
 // Chat Message Model
@@ -64,53 +65,39 @@ DashboardState _computeDashboard(OnboardingState s) {
   final employeeContrib = s.monthlyEmployeeContribution ?? 0.0;
   final employerContrib = s.monthlyEmployerContribution ?? 0.0;
   final monthlyContrib = employeeContrib + employerContrib;
-  final annualContrib = monthlyContrib * 12;
   final retirementMonthly = s.retirementMonthlyAmount;
 
   // Return early if no meaningful data
   final isComplete = age > 0 && currentCorpus > 0 && monthlyContrib > 0;
 
   // Step 1 — Annual return rate
-  double r;
-  final sector = s.sector ?? '';
-  if (sector == 'government') {
-    r = 0.085;
-  } else if (sector == 'self_employed') {
-    r = 0.095;
-  } else {
-    // private sector
-    r = age < 35 ? 0.10 : 0.09;
-  }
+  final r = RetirementCalculator.getReturnRate(
+    sector: s.sector ?? '',
+    age: age,
+  );
 
-  // Step 1 — Project future corpus
-  final double fc1 = years > 0
-      ? currentCorpus * math.pow(1 + r, years)
-      : currentCorpus;
-  final double fc2 = (r > 0 && years > 0)
-      ? annualContrib * ((math.pow(1 + r, years) - 1) / r)
-      : annualContrib * years.toDouble();
-  final projectedCorpus = fc1 + fc2;
+  // Step 2 — Project future corpus
+  final projectedCorpus = RetirementCalculator.calculateProjectedCorpus(
+    currentCorpus: currentCorpus,
+    monthlyContribution: monthlyContrib,
+    yearsToRetirement: years,
+    annualReturnRate: r,
+  );
 
-  // Step 2 — Required corpus at retirement
+  // Step 3 — Required corpus at retirement
+  final requiredCorpus = RetirementCalculator.calculateRequiredCorpus(
+    monthlyNeedToday: retirementMonthly,
+    yearsToRetirement: years,
+  );
+
+  // Step 4 — Calculate score
+  final score = RetirementCalculator.calculateReadinessScore(
+    projectedCorpus: projectedCorpus,
+    requiredCorpus: requiredCorpus,
+  );
+
+  // Still need inflated monthly need for state
   final inflatedMonthlyNeed = retirementMonthly * math.pow(1.06, years);
-  final requiredCorpus = inflatedMonthlyNeed * 12 * 25;
-
-  // Step 3 — Calculate score
-  int score = 0;
-  if (requiredCorpus > 0) {
-    final ratio = projectedCorpus / requiredCorpus;
-    double rawScore;
-    if (ratio >= 1.0) {
-      rawScore = 100;
-    } else if (ratio >= 0.8) {
-      rawScore = 80 + ((ratio - 0.8) / 0.2) * 20;
-    } else if (ratio >= 0.5) {
-      rawScore = 50 + ((ratio - 0.5) / 0.3) * 30;
-    } else {
-      rawScore = ratio * 100;
-    }
-    score = rawScore.clamp(0.0, 100.0).round();
-  }
 
   // Score label
   String label;

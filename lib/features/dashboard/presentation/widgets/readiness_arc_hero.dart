@@ -5,7 +5,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../shared/widgets/rupee_display.dart';
+import '../../../../shared/widgets/nps_button.dart';
 import '../providers/dashboard_provider.dart';
+import 'corpus_milestones_row.dart';
+import 'power_slider_sheet.dart';
+import 'score_explainer_sheet.dart';
 
 // ─────────────────────────────────────────────────────────────
 // ReadinessArcHero — animated arc gauge + stat columns
@@ -120,7 +124,25 @@ class _ReadinessArcHeroState extends ConsumerState<ReadinessArcHero>
                     ),
                     const SizedBox(height: 8),
                     Text('of your goal funded', style: AppTypography.bodySmall),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 4),
+                    // Explainer Trigger
+                    GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => const ScoreExplainerSheet(),
+                        );
+                      },
+                      child: Text(
+                        "What's this? ℹ️",
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
                     // Mini stat rows
                     _MiniStatRow(
@@ -145,7 +167,7 @@ class _ReadinessArcHeroState extends ConsumerState<ReadinessArcHero>
                   child: AnimatedBuilder(
                     animation: _animation,
                     builder: (context, _) {
-                      return _AnimatedArcGauge(
+                      return AnimatedArcGauge(
                         progress: _animation.value * (score / 100.0),
                         scoreColor: scoreColor,
                         size: 120,
@@ -194,6 +216,26 @@ class _ReadinessArcHeroState extends ConsumerState<ReadinessArcHero>
                 color: AppColors.textDisabled,
               ),
               textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const CorpusMilestonesRow(),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: NPSButton(
+              label: 'Simulate →',
+              variant: NPSButtonVariant
+                  .ghost, // Use ghost or secondary? The prompt just said "a new 'Simulate →' button". Let's use ghost so it doesn't clash with the primary action. Wait, "NPSButton secondary (outline): ... " in Biggest lever. Let's use secondary or ghost. Ghost is good for subtle "Simulate →". Let's use secondary.
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => const PowerSliderSheet(),
+                );
+              },
             ),
           ),
         ],
@@ -250,12 +292,13 @@ class _MiniStatRow extends StatelessWidget {
 // Arc Gauge
 // ─────────────────────────────────────────────────────────────
 
-class _AnimatedArcGauge extends StatelessWidget {
+class AnimatedArcGauge extends StatelessWidget {
   final double progress; // 0.0 to 1.0
   final Color scoreColor;
   final double size;
 
-  const _AnimatedArcGauge({
+  const AnimatedArcGauge({
+    super.key,
     required this.progress,
     required this.scoreColor,
     required this.size,
@@ -267,7 +310,7 @@ class _AnimatedArcGauge extends StatelessWidget {
       width: size,
       height: size,
       child: CustomPaint(
-        painter: _ArcGaugePainter(
+        painter: ArcGaugePainter(
           progress: progress.clamp(0.0, 1.0),
           scoreColor: scoreColor,
         ),
@@ -276,11 +319,11 @@ class _AnimatedArcGauge extends StatelessWidget {
   }
 }
 
-class _ArcGaugePainter extends CustomPainter {
+class ArcGaugePainter extends CustomPainter {
   final double progress;
   final Color scoreColor;
 
-  _ArcGaugePainter({required this.progress, required this.scoreColor});
+  ArcGaugePainter({required this.progress, required this.scoreColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -331,7 +374,7 @@ class _ArcGaugePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ArcGaugePainter oldDelegate) {
+  bool shouldRepaint(covariant ArcGaugePainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.scoreColor != scoreColor;
   }
