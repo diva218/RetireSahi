@@ -1,4 +1,13 @@
-# NPS Pulse
+### 🚀 Deployment (Vercel)
+
+The web application is located in the **`Website/`** folder. When importing this repository to Vercel, follow these steps:
+
+1.  **Root Directory**: Set this to **`Website`** in the project settings.
+2.  **Environment Variables**: Manually copy all variables from your `.env.local` file (Firebase API keys, etc.) into the Vercel Environment Variables section.
+3.  **Build Command**: Should automatically detect `npm run build`.
+4.  **Output Directory**: Should automatically detect `dist`.
+
+---
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=flat&logo=flutter&logoColor=white)
 ![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?style=flat&logo=dart&logoColor=white)
