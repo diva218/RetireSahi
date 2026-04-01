@@ -17,7 +17,7 @@ import DashboardLayout, { useUser } from '../components/DashboardLayout';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
-const MODEL = "llama-3.3-70b-versatile"; // High performance free model
+const MODEL = "openai/gpt-oss-120b"; // Updated to high-capacity model
 
 async function callGroq(messages) {
   if (!GROQ_API_KEY) {
