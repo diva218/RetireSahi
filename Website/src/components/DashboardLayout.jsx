@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Home, Shield, Moon, Bot, Settings, LogOut, Menu, X, Bell, BarChart2 
@@ -7,26 +7,21 @@ import { auth, db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { getScoreBand, calculateRetirement } from '../utils/math';
-
-const UserContext = createContext();
-
-export const useUser = () => {
-  const context = useContext(UserContext);
-  if (!context) throw new Error('useUser must be used within a DashboardLayout');
-  return context;
-};
+import { UserContext } from './UserContext';
+import { decryptUserData } from '../utils/encryption';
 
 export default function DashboardLayout({ children, title, userData: passedUserData }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [userData, setUserData] = useState(passedUserData || null);
+  const [fetchedUserData, setFetchedUserData] = useState(null);
   const [loading, setLoading] = useState(!passedUserData);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  const userData = passedUserData || fetchedUserData;
+  const setUserData = setFetchedUserData;
+
   useEffect(() => {
     if (passedUserData) {
-      setUserData(passedUserData);
-      setLoading(false);
       return;
     }
 
@@ -34,7 +29,8 @@ export default function DashboardLayout({ children, title, userData: passedUserD
       if (user) {
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) {
-          setUserData(snap.data());
+          const decrypted = await decryptUserData(snap.data(), user.uid);
+          setFetchedUserData(decrypted);
         } else {
           navigate('/onboarding');
         }

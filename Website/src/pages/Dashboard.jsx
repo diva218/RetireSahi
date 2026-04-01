@@ -11,6 +11,7 @@ import { onAuthStateChanged, signOut } from 'firebase/auth';
 import TourOverlay from '../components/TourOverlay';
 import InfoTooltip from '../components/InfoTooltip';
 import { TOUR_STEPS, DASHBOARD_TIPS } from '../constants/tooltips';
+import { decryptUserData, encryptUserData } from '../utils/encryption';
 import { 
   calculateRetirement, 
   getMilestoneAge, 
@@ -75,7 +76,7 @@ const StatCard = ({ label, value, subtext, icon: Icon, accent, fullWidth }) => (
          <div className="font-heading font-extrabold text-2xl md:text-3xl text-[#1E293B]">{value}</div>
        </div>
        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center border-2 border-[#1E293B] shadow-[2px_2px_0_0_#1E293B] group-hover:shadow-[3px_3px_0_0_#1E293B] transition-all`} style={{ backgroundColor: `${accent}22` }}>
-          <Icon className="w-5 h-5 md:w-6 md:h-6" strokeWidth={2.5} style={{ color: accent }} />
+          {React.createElement(Icon, { className: 'w-5 h-5 md:w-6 md:h-6', strokeWidth: 2.5, style: { color: accent } })}
        </div>
     </div>
     <div className="text-xs md:text-sm font-bold text-[#1E293B]/60 uppercase tracking-widest">{subtext}</div>
@@ -85,7 +86,7 @@ const StatCard = ({ label, value, subtext, icon: Icon, accent, fullWidth }) => (
 const QuickStat = ({ label, value, subtext, icon: Icon, color }) => (
   <div className="bg-white border-2 border-[#1E293B] rounded-[12px] p-4 pop-shadow flex items-start gap-4 group hover:-translate-y-1 transition-all cubic">
     <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-[#1E293B] shrink-0 font-bold`} style={{ backgroundColor: `${color}22` }}>
-       <Icon className="w-5 h-5" strokeWidth={2.5} style={{ color }} />
+          {React.createElement(Icon, { className: 'w-5 h-5', strokeWidth: 2.5, style: { color } })}
     </div>
     <div>
       <div className="text-[9px] font-bold uppercase tracking-widest text-[#1E293B]/40 mb-1">{label}</div>
@@ -145,7 +146,7 @@ export default function Dashboard() {
       if (user) {
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists()) {
-          const data = snap.data();
+               const data = await decryptUserData(snap.data(), user.uid);
           setUserData(data);
           setSimValues({
             npsContribution: data.npsContribution || 5000,
@@ -847,11 +848,13 @@ export default function Dashboard() {
                       onClick={async () => {
                          const user = auth.currentUser;
                          if (user) {
-                           await setDoc(doc(db, 'users', user.uid), {
+                                        const payload = {
                              ...simValues,
                              ...simResults,
                              updatedAt: new Date().toISOString()
-                           }, { merge: true });
+                                        };
+                                        const encrypted = await encryptUserData(payload, user.uid);
+                                        await setDoc(doc(db, 'users', user.uid), encrypted, { merge: true });
                            setUserData({ ...userData, ...simValues, ...simResults });
                            setSimulatorOpen(false);
                          }

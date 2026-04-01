@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import { 
   SCHEME_E_RETURN, SCHEME_C_RETURN, SCHEME_G_RETURN, 
   LIFESTYLE_MULTIPLIERS, INFLATION_RATE, SWR, 
@@ -45,7 +45,7 @@ const SectionCard = ({ title, icon: Icon, accent, children }) => (
      <div className="p-8 space-y-8">
         <div className="flex items-center gap-4">
            <div className={`w-12 h-12 rounded-full border-2 border-[#1E293B] flex items-center justify-center shadow-[3px_3px_0_0_#1E293B] shrink-0`} style={{ backgroundColor: `${accent}22` }}>
-              <Icon className="w-6 h-6" style={{ color: accent }} strokeWidth={2.5} />
+              {React.createElement(Icon, { className: 'w-6 h-6', style: { color: accent }, strokeWidth: 2.5 })}
            </div>
            <h2 className="font-heading font-black text-2xl md:text-3xl uppercase tracking-widest text-[#1E293B]">{title}</h2>
         </div>
@@ -58,7 +58,6 @@ const SectionCard = ({ title, icon: Icon, accent, children }) => (
 
 export default function Methodology() {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,9 +65,7 @@ export default function Methodology() {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const snap = await getDoc(doc(db, 'users', user.uid));
-        if (snap.exists()) {
-          setUserData(snap.data());
-        } else {
+            if (!snap.exists()) {
           navigate('/onboarding');
         }
       } else {

@@ -138,7 +138,7 @@ export default function LandingPage() {
       }
       if (email) {
         signInWithEmailLink(auth, email, window.location.href)
-          .then(async (result) => {
+          .then(async () => {
             window.localStorage.removeItem('emailForSignIn');
             const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
             if (userDoc.exists()) {
@@ -154,11 +154,13 @@ export default function LandingPage() {
     }
 
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [navigate]);
 
   return (
     <div className="min-h-screen text-[#1E293B] overflow-x-hidden selection:bg-[#F472B6] selection:text-white" style={{ backgroundColor: COLORS.bg, fontFamily: '"Plus Jakarta Sans", sans-serif' }}>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;700&display=swap');
+        
         h1, h2, h3, h4, .font-heading { font-family: 'Outfit', sans-serif; }
         
         .pop-shadow {
@@ -545,6 +547,192 @@ export default function LandingPage() {
                   );
                 })}
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Trust & Security Section */}
+        <section
+          style={{
+            background: '#1E293B',
+            padding: '80px 24px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: 'radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px)',
+              backgroundSize: '28px 28px',
+              pointerEvents: 'none',
+            }}
+            aria-hidden="true"
+          />
+
+          <div style={{ maxWidth: 900, margin: '0 auto', position: 'relative' }}>
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: '#34D399',
+                  border: '2px solid white',
+                  borderRadius: 9999,
+                  padding: '4px 16px',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: '#1E293B',
+                  marginBottom: 16,
+                  boxShadow: '3px 3px 0 rgba(255,255,255,0.3)',
+                }}
+              >
+                🔒 Privacy First
+              </div>
+              <h2
+                style={{
+                  fontFamily: 'Outfit',
+                  fontWeight: 800,
+                  fontSize: 'clamp(1.8rem, 4vw, 2.5rem)',
+                  color: 'white',
+                  marginBottom: 12,
+                }}
+              >
+                Your retirement data stays yours. Always.
+              </h2>
+              <p
+                style={{
+                  color: 'rgba(255,255,255,0.6)',
+                  fontSize: '1rem',
+                  fontFamily: 'Plus Jakarta Sans',
+                  maxWidth: 520,
+                  margin: '0 auto',
+                  lineHeight: 1.6,
+                }}
+              >
+                We built RetireSahi on a simple principle — your financial data is none of our business.
+                Here is exactly how we protect it.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 16,
+                marginBottom: 32,
+              }}
+            >
+              {[
+                {
+                  icon: '🔐',
+                  title: 'AES-256 Encryption',
+                  body: 'Your income, corpus, and savings are encrypted on your device before storage. We store only unreadable ciphertext — never plaintext.',
+                  color: '#8B5CF6',
+                },
+                {
+                  icon: '👁️',
+                  title: 'We See Only Your Name',
+                  body: 'Even as RetireSahi administrators, we can only see your first name. Every financial figure is encrypted and invisible to us.',
+                  color: '#34D399',
+                },
+                {
+                  icon: '⚡',
+                  title: 'You Control Your AI',
+                  body: 'Choose whether the AI uses your full profile or only computed insights. Change your mind anytime in Settings.',
+                  color: '#FBBF24',
+                },
+                {
+                  icon: '🗑️',
+                  title: 'Delete Everything',
+                  body: 'Export your data as JSON or permanently delete your entire account and all associated data in one click from Settings.',
+                  color: '#F472B6',
+                },
+              ].map((card, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '2px solid rgba(255,255,255,0.15)',
+                    borderRadius: 16,
+                    padding: 20,
+                    transition: 'all 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                    e.currentTarget.style.borderColor = card.color;
+                    e.currentTarget.style.transform = 'translateY(-4px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div style={{ fontSize: '2rem', marginBottom: 10 }}>{card.icon}</div>
+                  <h3
+                    style={{
+                      fontFamily: 'Outfit',
+                      fontWeight: 700,
+                      fontSize: '1rem',
+                      color: card.color,
+                      marginBottom: 8,
+                    }}
+                  >
+                    {card.title}
+                  </h3>
+                  <p
+                    style={{
+                      fontSize: '0.82rem',
+                      color: 'rgba(255,255,255,0.6)',
+                      fontFamily: 'Plus Jakarta Sans',
+                      lineHeight: 1.5,
+                      margin: 0,
+                    }}
+                  >
+                    {card.body}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 12,
+                padding: '14px 20px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {[
+                '✓ DPDP Act 2023 Compliant',
+                '✓ Firebase Row-Level Security',
+                '✓ No Data Selling. Ever.',
+                '✓ Google Cloud Mumbai Region',
+                '✓ Groq SOC 2 Type II',
+              ].map((item, i) => (
+                <span
+                  key={i}
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.5)',
+                    fontFamily: 'Plus Jakarta Sans',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  {item}
+                </span>
+              ))}
             </div>
           </div>
         </section>

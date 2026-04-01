@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
-  Sparkles, Send, Bot, User, Trash2, ArrowRight, Zap, Target,
-  HelpCircle, AlertCircle, RefreshCcw, ExternalLink, Cpu
+  Sparkles, Send, AlertCircle, RefreshCcw, ExternalLink, Cpu
 } from 'lucide-react';
 import {
   formatIndian,
   calculateRetirement,
-  INFLATION_RATE,
-  SCHEME_E_RETURN,
-  ANNUITY_RATE,
   getScoreBand
 } from '../utils/math';
-import { getSystemPrompt } from '../utils/aiPrompt';
-import DashboardLayout, { useUser } from '../components/DashboardLayout';
+import DashboardLayout from '../components/DashboardLayout';
+import { useUser } from '../components/UserContext';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../lib/firebase';
+import AIPrivacyChoice from '../components/AIPrivacyChoice';
+import { GROQ_PRIVACY_MODE_FIELDS, GROQ_FULL_MODE_FIELDS } from '../utils/encryption';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -96,7 +96,7 @@ const LoadingBubble = () => (
 );
 
 const ChatInterface = () => {
-  const { userData } = useUser();
+  const { userData, setUserData } = useUser();
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -118,33 +118,33 @@ const ChatInterface = () => {
     }
   }, [messages, isLoading]);
 
-  useEffect(() => {
-    if (userData && location.state?.initialPrompt && !hasTriggeredInitial.current) {
-      hasTriggeredInitial.current = true;
-      const prompt = location.state.initialPrompt;
-      // Clear location state to prevent re-triggering on refresh
-      window.history.replaceState({}, document.title);
-      handleSend(prompt);
+  const displayData = useMemo(() => {
+    if (!userData) return null;
+    const merged = { ...userData, ...calculateRetirement(userData) };
+    if (!merged.lumpSumCorpus) merged.lumpSumCorpus = merged.projectedValue * 0.6;
+    if (!merged.monthlyAnnuityIncome) merged.monthlyAnnuityIncome = (merged.projectedValue * 0.4 * 0.06) / 12;
+    if (!merged.blendedReturn) {
+      const eq = (merged.npsEquity || 50) / 100;
+      merged.blendedReturn = (eq * 0.1269) + ((1 - eq) / 2 * 0.0887) + ((1 - eq) / 2 * 0.0874);
     }
-  }, [userData, location.state]);
+    return merged;
+  }, [userData]);
 
-  if (!userData) return null;
+  const handlePrivacySelect = useCallback(async (mode) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-  const displayData = userData
-    ? { ...userData, ...calculateRetirement(userData) }
-    : null;
+    await setDoc(
+      doc(db, 'users', currentUser.uid),
+      { aiPrivacyMode: mode, updatedAt: new Date().toISOString() },
+      { merge: true }
+    );
 
-  // Ensure annuity fields exist for system prompt
-  if (displayData && !displayData.lumpSumCorpus) {
-    displayData.lumpSumCorpus = displayData.projectedValue * 0.6;
-  }
-  if (displayData && !displayData.monthlyAnnuityIncome) {
-    displayData.monthlyAnnuityIncome = (displayData.projectedValue * 0.4 * 0.06) / 12;
-  }
-  if (displayData && !displayData.blendedReturn) {
-    const eq = (displayData.npsEquity || 50) / 100;
-    displayData.blendedReturn = (eq * 0.1269) + ((1 - eq) / 2 * 0.0887) + ((1 - eq) / 2 * 0.0874);
-  }
+    setUserData((prev) => ({ ...(prev || {}), aiPrivacyMode: mode }));
+  }, [setUserData]);
+
+  const privacyMode = userData?.aiPrivacyMode || 'privacy';
+  const isFullMode = privacyMode === 'full';
 
   const quickPrompts = displayData
     ? [
@@ -160,7 +160,8 @@ const ChatInterface = () => {
       "How does a job change affect my NPS?",
     ];
 
-  const handleSend = async (content) => {
+  const handleSend = useCallback(async (content) => {
+    if (!displayData) return;
     const text = typeof content === 'string' ? content : inputValue;
     if (!text.trim()) return;
 
@@ -178,10 +179,78 @@ const ChatInterface = () => {
       : Math.max(50, 75 - (displayData.age - 50) * 2.5);
 
     const yearsToRetire = displayData.retireAge - displayData.age;
-    const annualIncome = displayData.monthlyIncome * 12;
+    const annualIncome = (Number(displayData.monthlyIncome) || 0) * 12;
     const basicSalary = annualIncome * (displayData.workContext === 'Government' ? 0.50 : 0.40);
 
-    const systemPrompt = getSystemPrompt(displayData, scoreBand, maxEquityPct, yearsToRetire, annualIncome, basicSalary);
+    const selectedFields = isFullMode ? GROQ_FULL_MODE_FIELDS : GROQ_PRIVACY_MODE_FIELDS;
+    const selectedProfile = Object.fromEntries(
+      selectedFields.map((field) => [field, displayData[field]])
+    );
+
+    const computedContext = `
+RETIREMENT INSIGHTS (computed from encrypted data):
+- Score: ${displayData.score}/100 (${scoreBand})
+- Monthly gap to close: ${formatIndian(displayData.monthlyGap)}/month
+- Projected corpus at ${displayData.retireAge}: ${formatIndian(displayData.projectedValue)}
+- Required corpus: ${formatIndian(displayData.requiredCorpus)}
+- Retirement gap: ${formatIndian(displayData.gap)}
+- Monthly need at retirement: ${formatIndian(displayData.monthlySpendAtRetirement)}
+- Lump sum at ${displayData.retireAge}: ${formatIndian(displayData.lumpSumCorpus)}
+- Monthly annuity pension: ${formatIndian(displayData.monthlyAnnuityIncome)}
+- Blended return: ${((displayData.blendedReturn || 0) * 100).toFixed(2)}%
+`;
+
+    const rawContext = isFullMode
+      ? `
+RAW FINANCIAL PROFILE (user consented to share):
+- Monthly income: ₹${Number(displayData.monthlyIncome || 0).toLocaleString('en-IN')}
+- Monthly NPS contribution: ₹${Number(displayData.npsContribution || 0).toLocaleString('en-IN')}
+- Current NPS corpus: ₹${Number(displayData.npsCorpus || 0).toLocaleString('en-IN')}
+- Other savings: ₹${Number(displayData.totalSavings || 0).toLocaleString('en-IN')}
+`
+      : `
+NOTE: User is in Privacy Mode. Do NOT ask for or reference specific
+income/corpus/contribution amounts. Use only the computed insights above.
+When giving contribution advice, say amounts like "increase by Rs18K/month"
+not "increase from RsX to RsY" since you do not know the base amount.
+`;
+
+    const systemPrompt = `
+You are RetireSahi AI — a financial co-pilot for Indian NPS subscribers.
+You are speaking with ${displayData.firstName}.
+Privacy mode: ${privacyMode.toUpperCase()}
+
+PROFILE:
+- Age: ${displayData.age} | Retiring at: ${displayData.retireAge}
+- Years to retire: ${yearsToRetire}
+- Sector: ${displayData.workContext}
+- Lifestyle: ${displayData.lifestyle}
+- Tax regime: ${displayData.taxRegime || 'New Regime'}
+- Equity allocation: ${displayData.npsEquity}%
+- Max equity cap by age: ${maxEquityPct}%
+${isFullMode ? `- Estimated annual income: ₹${annualIncome.toLocaleString('en-IN')}` : ''}
+${isFullMode ? `- Estimated basic salary: ₹${basicSalary.toLocaleString('en-IN')}` : ''}
+
+SELECTED PROFILE FIELDS:
+${JSON.stringify(selectedProfile)}
+
+${computedContext}
+${rawContext}
+
+NPS RULES: equity cap max 75% under 50 tapering 2.5%/year to 50% at 60.
+At 60: 40% annuitized minimum 60% lump sum tax-free.
+80CCD(1) old regime only 10% basic private 14% govt max 1.5L.
+80CCD(1B) old regime only extra 50000. 80CCD(2) both regimes.
+New regime 87A rebate zero tax if income under 12L.
+
+SCOPE: Answer NPS retirement tax career-affecting-NPS questions only.
+For off-topic questions pivot to one insight from their profile.
+Never answer coding recipes stocks crypto medical legal questions.
+
+STYLE: Warm direct concise. Use Indian formatting Lakh Crore.
+Always use ${displayData.firstName}'s actual computed numbers.
+3-5 sentences for simple questions max 8-10 lines for complex.
+`;
 
     const chatHistory = [
       { role: "system", content: systemPrompt },
@@ -204,7 +273,23 @@ const ChatInterface = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [displayData, inputValue, messages, privacyMode, isFullMode]);
+
+  useEffect(() => {
+    if (userData && location.state?.initialPrompt && !hasTriggeredInitial.current) {
+      hasTriggeredInitial.current = true;
+      const prompt = location.state.initialPrompt;
+      // Clear location state to prevent re-triggering on refresh
+      window.history.replaceState({}, document.title);
+      handleSend(prompt);
+    }
+  }, [userData, location.state, handleSend]);
+
+  if (!userData) return null;
+
+  if (userData.aiPrivacyMode === undefined || userData.aiPrivacyMode === null) {
+    return <AIPrivacyChoice onSelect={handlePrivacySelect} firstName={userData.firstName} />;
+  }
 
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col relative overflow-hidden">

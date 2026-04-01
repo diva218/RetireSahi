@@ -8,7 +8,9 @@ import { DREAM_PLANNER_TIPS } from '../constants/tooltips';
 import { db, auth } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { calculateRetirement, formatIndian, INFLATION_RATE, LIFESTYLE_MULTIPLIERS } from '../utils/math';
-import DashboardLayout, { useUser } from '../components/DashboardLayout';
+import DashboardLayout from '../components/DashboardLayout';
+import { useUser } from '../components/UserContext';
+import { encryptUserData } from '../utils/encryption';
 
 const COLORS = {
   emerald: '#34D399',
@@ -245,7 +247,8 @@ const PageContent = () => {
         monthlySpendAtRetirement: simResults.monthlySpendAtRetirement,
         updatedAt: new Date().toISOString()
       };
-      await setDoc(doc(db, 'users', auth.currentUser.uid), dataToSave, { merge: true });
+      const encrypted = await encryptUserData(dataToSave, auth.currentUser.uid);
+      await setDoc(doc(db, 'users', auth.currentUser.uid), encrypted, { merge: true });
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
       setUserData(prev => ({ ...prev, ...dataToSave }));

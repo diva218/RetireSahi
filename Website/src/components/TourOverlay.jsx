@@ -123,6 +123,43 @@ export default function TourOverlay({ steps, onComplete, onSkip }) {
     return () => window.removeEventListener('keydown', trap);
   }, [currentStep]);
 
+  // Keep tour controls visible for each step (especially Next/Finish at card bottom).
+  useEffect(() => {
+    if (!pageRect) return;
+
+    const ensureCardVisible = () => {
+      if (!cardRef.current) return;
+
+      // Keep the CTA row comfortably above the viewport bottom.
+      // Step 6 gets a larger offset because its target/card combo tends to sit lower.
+      const topMargin = 20;
+      const bottomMargin = currentStep === 5 ? 140 : 96;
+      const rect = cardRef.current.getBoundingClientRect();
+
+      if (rect.bottom > window.innerHeight - bottomMargin) {
+        window.scrollBy({
+          top: rect.bottom - (window.innerHeight - bottomMargin),
+          behavior: 'smooth',
+        });
+      } else if (rect.top < topMargin) {
+        window.scrollBy({
+          top: rect.top - topMargin,
+          behavior: 'smooth',
+        });
+      }
+    };
+
+    const rafId = requestAnimationFrame(ensureCardVisible);
+    const timeoutId1 = setTimeout(ensureCardVisible, 240);
+    const timeoutId2 = setTimeout(ensureCardVisible, 520);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+    };
+  }, [currentStep, pageRect]);
+
   // ─── Navigation ──────────────────────────────────────────────────
   const goNext = () => {
     if (isTransitioning) return;

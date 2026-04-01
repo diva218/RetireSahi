@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState } from 'react';
 import { 
   User, Wallet, Target, Shield, Settings as SettingsIcon, Info, 
   ChevronDown, ChevronUp, Save, X, Trash2, Download, LogOut, 
@@ -8,15 +8,17 @@ import { auth, db } from '../lib/firebase';
 import { doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { deleteUser } from 'firebase/auth';
 import { calculateRetirement, getMaxEquityPct, formatIndian } from '../utils/math';
-import DashboardLayout, { useUser } from '../components/DashboardLayout';
+import DashboardLayout from '../components/DashboardLayout';
+import { useUser } from '../components/UserContext';
 import InfoTooltip from '../components/InfoTooltip';
 import { SETTINGS_TIPS } from '../constants/tooltips';
+import { encryptUserData } from '../utils/encryption';
 
 const SectionHeader = ({ icon: Icon, title, editing, onEdit, color }) => (
   <div className="flex items-center justify-between py-6 px-8 border-b border-[#1E293B]/5 transition-all">
     <div className="flex items-center gap-4">
       <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 border-[#1E293B] shadow-[2px_2px_0_0_#1E293B]`} style={{ backgroundColor: `${color}22` }}>
-        <Icon className="w-5 h-5 text-[#1E293B]" strokeWidth={2.5} style={{ color }} />
+        {React.createElement(Icon, { className: 'w-5 h-5 text-[#1E293B]', strokeWidth: 2.5, style: { color } })}
       </div>
       <h2 className="font-heading font-black text-xl md:text-2xl text-[#1E293B]">{title}</h2>
     </div>
@@ -59,18 +61,22 @@ const PageContent = () => {
   const [toast, setToast] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  useEffect(() => {
-    if (userData && !editingSection) {
-      setFormData(userData);
+  const toggleEditSection = (sectionName) => {
+    if (editingSection === sectionName) {
+      setEditingSection(null);
+      return;
     }
-  }, [userData, editingSection]);
+
+    setFormData(userData || {});
+    setEditingSection(sectionName);
+  };
 
   const showToast = (message, type = 'success', extra = null) => {
     setToast({ message, type, extra });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleSave = async (section) => {
+  const handleSave = async () => {
     if (!auth.currentUser) return;
     try {
       const parsedData = {
@@ -92,7 +98,8 @@ const PageContent = () => {
         updatedAt: new Date().toISOString() 
       };
       
-      await setDoc(doc(db, 'users', auth.currentUser.uid), updatedData, { merge: true });
+      const encrypted = await encryptUserData(updatedData, auth.currentUser.uid);
+      await setDoc(doc(db, 'users', auth.currentUser.uid), encrypted, { merge: true });
       
       const oldScore = userData.score;
       const newScore = newResults.score;
@@ -107,7 +114,7 @@ const PageContent = () => {
       } else {
         showToast("Changes saved! Your dashboard has been updated.", 'amber');
       }
-    } catch (e) {
+    } catch {
       showToast("Something went wrong. Please try again.", 'red');
     }
   };
@@ -130,7 +137,7 @@ const PageContent = () => {
       await deleteDoc(doc(db, 'users', user.uid));
       await deleteUser(user);
       window.location.href = '/';
-    } catch (e) {
+    } catch {
       showToast("Requires recent login to delete account.", 'red');
       setShowDeleteModal(false);
     }
@@ -148,7 +155,7 @@ const PageContent = () => {
         <SectionHeader 
           icon={User} title="Personal Info" color="#8B5CF6"
           editing={editingSection === 'personal'} 
-          onEdit={() => setEditingSection(editingSection === 'personal' ? null : 'personal')} 
+          onEdit={() => toggleEditSection('personal')} 
         />
         <div className="p-8">
           {editingSection === 'personal' ? (
@@ -219,7 +226,7 @@ const PageContent = () => {
         <SectionHeader 
           icon={Wallet} title="Income & NPS Details" color="#F472B6"
           editing={editingSection === 'income'} 
-          onEdit={() => setEditingSection(editingSection === 'income' ? null : 'income')} 
+          onEdit={() => toggleEditSection('income')} 
         />
         <div className="p-8">
           {editingSection === 'income' ? (
@@ -331,7 +338,7 @@ const PageContent = () => {
         <SectionHeader 
           icon={Target} title="Retirement Goal" color="#FBBF24"
           editing={editingSection === 'retirement'} 
-          onEdit={() => setEditingSection(editingSection === 'retirement' ? null : 'retirement')} 
+          onEdit={() => toggleEditSection('retirement')} 
         />
         <div className="p-8">
           {editingSection === 'retirement' ? (
@@ -400,7 +407,7 @@ const PageContent = () => {
         <SectionHeader 
           icon={Shield} title="Tax Preferences" color="#34D399"
           editing={editingSection === 'tax'} 
-          onEdit={() => setEditingSection(editingSection === 'tax' ? null : 'tax')} 
+          onEdit={() => toggleEditSection('tax')} 
         />
         <div className="p-8">
           {editingSection === 'tax' ? (
@@ -458,6 +465,38 @@ const PageContent = () => {
       </div>
 
       {/* Section 5: Account Actions */}
+      <div className="bg-white border-2 border-[#1E293B] rounded-[24px] overflow-hidden pop-shadow">
+        <div className="p-8 space-y-4">
+          <h3 className="font-heading font-black text-lg text-[#1E293B] uppercase tracking-widest flex items-center gap-2">
+            <Bot className="w-5 h-5" /> AI Preferences
+          </h3>
+
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-2 border-b border-[#E2E8F0]">
+            <div>
+              <p className="font-heading font-bold text-[0.95rem] text-[#1E293B] mb-0.5">AI Data Mode</p>
+              <p className="text-[0.8rem] text-[#64748B] font-['Plus_Jakarta_Sans']">
+                {userData.aiPrivacyMode === 'full'
+                  ? '⚡ Full Mode — Groq receives your complete financial profile'
+                  : '🔒 Privacy Mode — Groq sees only computed insights'}
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                const newMode = userData.aiPrivacyMode === 'full' ? 'privacy' : 'full';
+                await setDoc(doc(db, 'users', auth.currentUser.uid), { aiPrivacyMode: newMode }, { merge: true });
+                setUserData((prev) => ({ ...prev, aiPrivacyMode: newMode }));
+                showToast(`AI mode switched to ${newMode === 'full' ? 'Full' : 'Privacy'} mode.`, 'amber');
+              }}
+              className="text-white border-2 border-[#1E293B] rounded-full px-4 py-2 font-['Plus_Jakarta_Sans'] font-bold text-[0.75rem] uppercase tracking-[0.06em] shadow-[3px_3px_0_#1E293B]"
+              style={{ background: userData.aiPrivacyMode === 'full' ? '#F472B6' : '#8B5CF6' }}
+            >
+              Switch to {userData.aiPrivacyMode === 'full' ? 'Privacy' : 'Full'} Mode
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 6: Account Actions */}
       <div className="bg-slate-50 border-2 border-[#1E293B]/10 rounded-[24px] overflow-hidden">
           <div className="p-8 space-y-4">
             <h3 className="font-heading font-black text-lg text-[#1E293B] uppercase tracking-widest flex items-center gap-2">
@@ -482,7 +521,7 @@ const PageContent = () => {
           </div>
       </div>
 
-      {/* Section 6: About */}
+      {/* Section 7: About */}
       <div className="text-center space-y-4 pt-8 border-t border-slate-100">
           <div className="flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-[3px] text-slate-300">
             <Bot className="w-4 h-4" /> Developed by RetireSahi Team

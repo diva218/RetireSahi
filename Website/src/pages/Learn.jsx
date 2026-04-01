@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Shield, CreditCard, Layers, PieChart, TrendingUp, Sliders, 
@@ -6,9 +6,8 @@ import {
   ArrowUpFromLine, LogOut, TrendingDown, AlertCircle, BarChart2, 
   Baby, ArrowRight, ChevronDown, CheckCircle2, Menu, X, Bell
 } from 'lucide-react';
-import { auth, db } from '../lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import AuthModal from '../components/AuthModal';
 
 const COLORS = {
@@ -59,7 +58,6 @@ const SquigglyLine = ({ color = COLORS.violet }) => (
 // --- Page Components ---
 const ExpandableCard = ({ icon: Icon, title, teaser, expandedContent, accentColor }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const contentRef = useRef(null);
 
   return (
     <div 
@@ -70,7 +68,7 @@ const ExpandableCard = ({ icon: Icon, title, teaser, expandedContent, accentColo
         className="w-full p-6 flex items-start gap-4 text-left cursor-pointer transition-colors"
       >
         <div className={`w-14 h-14 rounded-full border-2 border-[#1E293B] flex items-center justify-center shrink-0 shadow-[4px_4px_0_0_#1E293B] group-hover:rotate-6 transition-all cubic`} style={{ backgroundColor: accentColor }}>
-           <Icon className="w-8 h-8 text-white" strokeWidth={2.5} />
+            {React.createElement(Icon, { className: 'w-8 h-8 text-white', strokeWidth: 2.5 })}
         </div>
         <div className="flex-1 min-w-0 pr-4 mt-1">
            <h3 className="font-heading font-extrabold text-[#1E293B] text-xl mb-1 truncate">{title}</h3>
@@ -81,18 +79,13 @@ const ExpandableCard = ({ icon: Icon, title, teaser, expandedContent, accentColo
         </div>
       </button>
 
-      <div 
-        ref={contentRef}
-        className="transition-all duration-500 ease-in-out"
-        style={{ 
-          maxHeight: isExpanded ? `${contentRef.current?.scrollHeight}px` : '0px',
-          opacity: isExpanded ? 1 : 0
-        }}
-      >
-        <div className="px-6 pb-8 ml-[72px] pr-10 border-t border-slate-100 pt-6">
-           <div className="text-[#1E293B]/80 font-medium leading-relaxed prose prose-slate max-w-none">
+      <div className={`grid transition-all duration-500 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+          <div className="px-6 pb-8 ml-[72px] pr-10 border-t border-slate-100 pt-6">
+            <div className="text-[#1E293B]/80 font-medium leading-relaxed prose prose-slate max-w-none">
               {expandedContent}
-           </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

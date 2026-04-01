@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Zap, TrendingUp, Info, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { computeTaxSavings, computeTax, NEW_REGIME_SLABS, OLD_REGIME_SLABS } from '../utils/math';
-import DashboardLayout, { useUser } from '../components/DashboardLayout';
+import DashboardLayout from '../components/DashboardLayout';
+import { useUser } from '../components/UserContext';
 import InfoTooltip from '../components/InfoTooltip';
 import { TAX_SHIELD_TIPS } from '../constants/tooltips';
 
@@ -21,16 +22,14 @@ const PageContent = () => {
   // Custom states for what-if tax scenarios
   const [investments, setInvestments] = useState({
     extra80C: 0,
-    nps80CCD1B: 50000,
-    employerNPS: 0 // 80CCD(2)
+      nps80CCD1B: 50000
   });
 
-  useEffect(() => {
-    if (userData) {
+   const employerNPS = useMemo(() => {
+      if (!userData) return 0;
       const savingsInfo = computeTaxSavings(userData);
-      setInvestments(prev => ({ ...prev, employerNPS: Math.round(savingsInfo.ccd2?.potential || 0) }));
-    }
-  }, [userData]);
+      return Math.round(savingsInfo.ccd2?.potential || 0);
+   }, [userData]);
 
   const taxAnalysis = useMemo(() => {
     if (!userData) return null;
@@ -38,7 +37,7 @@ const PageContent = () => {
     const annualIncome = (parseFloat(userData.monthlyIncome) || 0) * 12;
 
     const newRegimeTax = computeTax(annualIncome, 'new', 0);
-    const oldRegimeTax = computeTax(annualIncome, 'old', Math.min(150000, investments.extra80C) + taxData.ccd1.used + investments.nps80CCD1B + investments.employerNPS);
+   const oldRegimeTax = computeTax(annualIncome, 'old', Math.min(150000, investments.extra80C) + taxData.ccd1.used + investments.nps80CCD1B + employerNPS);
     const taxDifference = oldRegimeTax - newRegimeTax;
 
     let headline = '';
@@ -62,7 +61,7 @@ const PageContent = () => {
       oldRegime: { tax: oldRegimeTax, slabs: OLD_REGIME_SLABS },
       bestRegime: newRegimeTax < oldRegimeTax ? 'new' : 'old'
     };
-  }, [userData, investments]);
+   }, [userData, investments, employerNPS]);
 
   if (!userData) return null;
 

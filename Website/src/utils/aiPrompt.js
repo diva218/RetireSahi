@@ -14,6 +14,10 @@ RETIREMENT NUMBERS:
 - Projected corpus: ₹${formatIndian(displayData.projectedValue)} | Required: ₹${formatIndian(displayData.requiredCorpus)}
 - Monthly gap closer: ₹${formatIndian(displayData.monthlyGap)}/month extra needed
 - Monthly need at retirement: ₹${formatIndian(displayData.monthlySpendAtRetirement)}
+- Years left to retire: ${yearsToRetire}
+- Estimated annual income: ₹${formatIndian(annualIncome)}
+- Estimated basic salary: ₹${formatIndian(basicSalary)}
+- Max equity allowed by age: ${maxEquityPct}%
 
 KEY NPS RULES TO APPLY:
 - At 60: 40% must be annuitized, 60% is tax-free lump sum

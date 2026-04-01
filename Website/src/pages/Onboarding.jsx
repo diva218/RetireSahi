@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, ArrowLeft, Upload, Check, Loader2, Activity, Sparkles, IndianRupee, Zap } from 'lucide-react';
 import { db, auth } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { calculateRetirement, getScoreBand } from '../utils/math';
+import { encryptUserData } from '../utils/encryption';
 
 const COLORS = {
   bg: '#FFFDF5',
@@ -121,14 +122,19 @@ export default function Onboarding() {
     taxRegime: 'new'
   });
 
-  const [results, setResults] = useState({
-    score: 0,
-    projectedValue: 0,
-    requiredCorpus: 0,
-    monthlyGap: 0
-  });
-
   const handleChange = (e) => setFormData({...formData, [e.target.name]: e.target.value});
+
+  const parsedData = useMemo(() => ({
+    ...formData,
+    age: parseInt(formData.age) || 28,
+    monthlyIncome: parseFloat(formData.monthlyIncome) || 0,
+    npsContribution: formData.npsUsage === 'none' ? 0 : (parseFloat(formData.npsContribution) || (formData.npsUsage === 'upload' ? 4500 : 0)),
+    npsCorpus: formData.npsUsage === 'none' ? 0 : (parseFloat(formData.npsCorpus) || (formData.npsUsage === 'upload' ? 120000 : 0)),
+    totalSavings: parseFloat(formData.totalSavings) || 0,
+    retireAge: parseInt(formData.retireAge) || 60,
+  }), [formData]);
+
+  const results = useMemo(() => calculateRetirement(parsedData), [parsedData]);
 
   useEffect(() => {
     document.title = "RetireSahi | Onboarding";
@@ -144,30 +150,17 @@ export default function Onboarding() {
   const [calcMsg, setCalcMsg] = useState(0);
   useEffect(() => {
     if (step === 8) {
-      // PARSE STRINGS TO NUMBERS
-      const parsedData = {
-        ...formData,
-        age: parseInt(formData.age) || 28,
-        monthlyIncome: parseFloat(formData.monthlyIncome) || 0,
-        npsContribution: formData.npsUsage === 'none' ? 0 : (parseFloat(formData.npsContribution) || (formData.npsUsage === 'upload' ? 4500 : 0)),
-        npsCorpus: formData.npsUsage === 'none' ? 0 : (parseFloat(formData.npsCorpus) || (formData.npsUsage === 'upload' ? 120000 : 0)),
-        totalSavings: parseFloat(formData.totalSavings) || 0,
-        retireAge: parseInt(formData.retireAge) || 60,
-      };
-
-      // PERFORM CALCULATIONS USING CENTRALIZED MATH
-      const calculated = calculateRetirement(parsedData);
-      setResults(calculated);
-
       // SAVE DATA
       const saveData = async () => {
         try {
           if (auth?.currentUser) {
-            await setDoc(doc(db, 'users', auth.currentUser.uid), {
+            const payload = {
               ...parsedData,
-              ...calculated,
+              ...results,
               updatedAt: new Date().toISOString()
-            }, { merge: true });
+            };
+            const encrypted = await encryptUserData(payload, auth.currentUser.uid);
+            await setDoc(doc(db, 'users', auth.currentUser.uid), encrypted, { merge: true });
           }
         } catch (error) {
           console.error("Firestore Error: ", error);
@@ -183,7 +176,7 @@ export default function Onboarding() {
       ];
       sequence.forEach((fn, i) => setTimeout(fn, (i + 1) * 800));
     }
-  }, [step, formData]);
+  }, [step, parsedData, results]);
 
   const formatCurrency = (val) => {
     if (val >= 10000000) return `₹${(val / 10000000).toFixed(1)} Cr`;
