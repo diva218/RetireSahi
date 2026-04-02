@@ -1,7 +1,7 @@
 // ============================================
 // RetireSahi — Math Engine v2.0
 // All formulas verified against PFRDA rules
-// and FY 2025-26 tax compliance
+// and FY 2026-27 tax compliance
 // ============================================
 
 // ── SCHEME RETURNS (10-year averages) ───────
@@ -60,7 +60,7 @@ export function computeBlendedReturn(equityPct, age) {
   )
 }
 
-// ── TAX REGIME SLABS (AY 2025-26) ───────────
+// ── TAX REGIME SLABS (FY 2026-27) ───────────
 export const NEW_REGIME_SLABS = [
   { limit: 400000,  rate: 0.00 },
   { limit: 800000,  rate: 0.05 },
@@ -77,6 +77,16 @@ export const OLD_REGIME_SLABS = [
   { limit: 1000000, rate: 0.20 },
   { limit: Infinity, rate: 0.30 },
 ]
+
+export const NEW_REGIME_STANDARD_DEDUCTION = 75000
+export const OLD_REGIME_STANDARD_DEDUCTION = 50000
+export const NEW_REGIME_87A_LIMIT = 1200000
+export const OLD_REGIME_87A_LIMIT = 500000
+export const NEW_REGIME_87A_REBATE = 60000
+export const OLD_REGIME_87A_REBATE = 12500
+export const HEALTH_EDUCATION_CESS = 0.04
+export const MARGINAL_RELIEF_START = 1200000
+export const MARGINAL_RELIEF_END = 1275000
 
 // ── INDIAN NUMBER FORMATTER ─────────────────
 export function formatIndian(num) {
@@ -300,15 +310,14 @@ export function computeWhatIfScenarios(userData) {
   }))
 }
 
-// ── TAX CALCULATOR ──────────────────────────
-export function computeTax(annualIncome, regime = 'new', deductions = 0) {
-  const stdDeduction  = regime === 'new' ? 75000 : 50000
-  const rebateLimit   = regime === 'new' ? 1200000 : 500000
-  const slabs         = regime === 'new' ? NEW_REGIME_SLABS : OLD_REGIME_SLABS
-  const taxableIncome = Math.max(0, annualIncome - stdDeduction - deductions)
+function sumAllowedDeductionBlocks(deductionBlocks = {}) {
+  return Object.values(deductionBlocks).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0)
+}
 
+function computeSlabTax(taxableIncome, slabs) {
   let tax = 0
   let prev = 0
+
   for (const slab of slabs) {
     if (taxableIncome <= prev) break
     const taxable = Math.min(taxableIncome, slab.limit) - prev
@@ -316,55 +325,267 @@ export function computeTax(annualIncome, regime = 'new', deductions = 0) {
     prev = slab.limit
   }
 
-  // 87A rebate — zero tax if taxable income within limit
-  if (taxableIncome <= rebateLimit) tax = 0
+  return tax
+}
 
-  // 4% health & education cess
-  return Math.round(tax * 1.04)
+// FY 2026-27 marginal relief for New Regime rebate taper zone.
+// For taxable income between 12,00,001 and 12,75,000, final tax payable
+// should not exceed income above ₹12,00,000.
+export function calculateMarginalRelief(taxableIncome) {
+  const ti = Math.max(0, Number(taxableIncome) || 0)
+
+  if (ti <= MARGINAL_RELIEF_START || ti > MARGINAL_RELIEF_END) {
+    return {
+      applicable: false,
+      reliefAmount: 0,
+      capAmount: 0,
+      taxBeforeRelief: null,
+      taxAfterRelief: null,
+    }
+  }
+
+  const baseTax = computeSlabTax(ti, NEW_REGIME_SLABS)
+  const taxBeforeRelief = Math.round(baseTax * (1 + HEALTH_EDUCATION_CESS))
+  const capAmount = Math.max(0, Math.round(ti - MARGINAL_RELIEF_START))
+
+  if (taxBeforeRelief <= capAmount) {
+    return {
+      applicable: false,
+      reliefAmount: 0,
+      capAmount,
+      taxBeforeRelief,
+      taxAfterRelief: taxBeforeRelief,
+    }
+  }
+
+  return {
+    applicable: true,
+    reliefAmount: taxBeforeRelief - capAmount,
+    capAmount,
+    taxBeforeRelief,
+    taxAfterRelief: capAmount,
+  }
+}
+
+function computeTaxDetailed(annualIncome, regime = 'new', deductions = 0) {
+  const normalizedIncome = Math.max(0, Number(annualIncome) || 0)
+  const normalizedDeductions = Math.max(0, Number(deductions) || 0)
+  const isNewRegime = regime === 'new'
+  const stdDeduction = isNewRegime ? NEW_REGIME_STANDARD_DEDUCTION : OLD_REGIME_STANDARD_DEDUCTION
+  const slabs = isNewRegime ? NEW_REGIME_SLABS : OLD_REGIME_SLABS
+  const taxableIncome = Math.max(0, normalizedIncome - stdDeduction - normalizedDeductions)
+  const baseTax = computeSlabTax(taxableIncome, slabs)
+
+  const rebateLimit = isNewRegime ? NEW_REGIME_87A_LIMIT : OLD_REGIME_87A_LIMIT
+  const rebateCap = isNewRegime ? NEW_REGIME_87A_REBATE : OLD_REGIME_87A_REBATE
+  const rebateApplied = taxableIncome <= rebateLimit ? Math.min(baseTax, rebateCap) : 0
+  const postRebateTax = Math.max(0, baseTax - rebateApplied)
+
+  let taxPayable = Math.round(postRebateTax * (1 + HEALTH_EDUCATION_CESS))
+  let marginalReliefApplied = false
+  let marginalReliefAmount = 0
+
+  if (isNewRegime && taxableIncome > MARGINAL_RELIEF_START && taxableIncome <= MARGINAL_RELIEF_END) {
+    const relief = calculateMarginalRelief(taxableIncome)
+    if (relief.applicable) {
+      marginalReliefApplied = true
+      marginalReliefAmount = relief.reliefAmount
+      taxPayable = relief.taxAfterRelief
+    }
+  }
+
+  return {
+    annualIncome: normalizedIncome,
+    deductions: normalizedDeductions,
+    regime,
+    taxableIncome,
+    baseTax,
+    rebateApplied,
+    cessRate: HEALTH_EDUCATION_CESS,
+    marginalReliefApplied,
+    marginalReliefAmount,
+    taxPayable,
+  }
+}
+
+// ── TAX CALCULATOR ──────────────────────────
+export function computeTax(annualIncome, regime = 'new', deductions = 0) {
+  return computeTaxDetailed(annualIncome, regime, deductions).taxPayable
+}
+
+export function calculateBreakevenDeductions(income) {
+  const annualIncome = Math.max(0, Number(income) || 0)
+  const targetNewTax = computeTax(annualIncome, 'new', 0)
+
+  if (computeTax(annualIncome, 'old', 0) <= targetNewTax) {
+    return 0
+  }
+
+  let lo = 0
+  let hi = Math.max(annualIncome, 1)
+
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2
+    const oldTaxAtMid = computeTax(annualIncome, 'old', mid)
+    if (oldTaxAtMid <= targetNewTax) {
+      hi = mid
+    } else {
+      lo = mid
+    }
+  }
+
+  return Math.round(hi)
+}
+
+export function calculateTaxLeakage(userData) {
+  const annualIncome = (Math.max(0, Number(userData?.monthlyIncome) || 0)) * 12
+  const annualContrib = (Math.max(0, Number(userData?.npsContribution) || 0)) * 12
+  const regime = userData?.taxRegime === 'old' ? 'old' : 'new'
+  const isGovt = userData?.workContext === 'Government'
+
+  const basicSalaryPct = isGovt ? 0.50 : 0.40
+  const basicSalary = annualIncome * basicSalaryPct
+
+  const ccd1Limit = Math.min(basicSalary * (isGovt ? 0.14 : 0.10), 150000)
+  const ccd1Used = regime === 'old' ? Math.min(annualContrib, ccd1Limit) : 0
+  const ccd1bUsed = regime === 'old' ? Math.min(Math.max(0, annualContrib - ccd1Limit), 50000) : 0
+
+  const ccd2CurrentPct = regime === 'new' ? 0.14 : (isGovt ? 0.14 : 0.10)
+  const ccd2CurrentUsed = Math.max(0, Number(userData?.employerNPSContributionAnnual) || 0)
+  const ccd2CurrentLimit = basicSalary * ccd2CurrentPct
+  const ccd2Current = Math.min(ccd2CurrentUsed, ccd2CurrentLimit)
+
+  const homeLoanCurrent = regime === 'old' ? Math.min(Math.max(0, Number(userData?.homeLoanInterest24b) || 0), 200000) : 0
+  const medicalCurrent = regime === 'old' ? Math.min(Math.max(0, Number(userData?.medicalInsurance80D) || 0), 50000) : 0
+  const extra80CCurrent = regime === 'old' ? Math.min(Math.max(0, Number(userData?.extra80C) || 0), 150000) : 0
+
+  const currentDeductions = sumAllowedDeductionBlocks({
+    ccd1: ccd1Used,
+    ccd1b: ccd1bUsed,
+    ccd2: ccd2Current,
+    homeLoan24b: homeLoanCurrent,
+    medical80d: medicalCurrent,
+    extra80c: extra80CCurrent,
+  })
+
+  const currentTax = computeTax(annualIncome, regime, currentDeductions)
+
+  const optimizedNewDeductions = sumAllowedDeductionBlocks({
+    ccd2: basicSalary * 0.14,
+  })
+
+  const optimizedOldDeductions = sumAllowedDeductionBlocks({
+    ccd1: ccd1Limit,
+    ccd1b: 50000,
+    ccd2: basicSalary * (isGovt ? 0.14 : 0.10),
+    section24b: 200000,
+    section80d: 50000,
+    section80c: 150000,
+  })
+
+  const theoreticalMinTax = Math.min(
+    computeTax(annualIncome, 'new', optimizedNewDeductions),
+    computeTax(annualIncome, 'old', optimizedOldDeductions)
+  )
+
+  const leakage = Math.max(0, currentTax - theoreticalMinTax)
+
+  return {
+    currentTax,
+    theoreticalMinimumTax: theoreticalMinTax,
+    leakage,
+  }
 }
 
 export function computeTaxSavings(userData) {
-  const annualIncome   = (parseFloat(userData.monthlyIncome) || 0) * 12
-  const annualContrib  = (parseFloat(userData.npsContribution) || 0) * 12
-  const regime         = userData.taxRegime || 'new'
-  const basicSalaryPct = userData.workContext === 'Government' ? 0.50 : 0.40
-  const basicSalary    = annualIncome * basicSalaryPct
-  const govtMultiplier = userData.workContext === 'Government' ? 0.14 : 0.10
+  const annualIncome = (Math.max(0, Number(userData?.monthlyIncome) || 0)) * 12
+  const annualContrib = (Math.max(0, Number(userData?.npsContribution) || 0)) * 12
+  const regime = userData?.taxRegime === 'old' ? 'old' : 'new'
+  const isGovt = userData?.workContext === 'Government'
 
-  // 80CCD(1) — old regime only
-  const ccd1Limit    = Math.min(basicSalary * govtMultiplier, 150000)
-  const ccd1Used     = regime === 'old' ? Math.min(annualContrib, ccd1Limit) : 0
-  const ccd1Missed   = regime === 'old' ? ccd1Limit - ccd1Used : 0
+  const basicSalaryPct = isGovt ? 0.50 : 0.40
+  const basicSalary = annualIncome * basicSalaryPct
 
-  // 80CCD(1B) — old regime only, extra ₹50k
-  const ccd1bLimit   = 50000
-  const ccd1bUsed    = regime === 'old'
-    ? Math.min(Math.max(0, annualContrib - ccd1Limit), ccd1bLimit) : 0
-  const ccd1bMissed  = regime === 'old' ? ccd1bLimit - ccd1bUsed : 0
+  const oldCcd2Pct = isGovt ? 0.14 : 0.10
+  const newCcd2Pct = 0.14 // 80CCD(2) parity in New Regime
 
-  // 80CCD(2) — both regimes, employer contribution
-  const ccd2Limit    = basicSalary * govtMultiplier
-  // we don't know employer contribution so show as potential
-  const ccd2Potential = ccd2Limit
+  const ccd1Limit = Math.min(basicSalary * oldCcd2Pct, 150000)
+  const ccd1Used = regime === 'old' ? Math.min(annualContrib, ccd1Limit) : 0
+  const ccd1Missed = regime === 'old' ? ccd1Limit - ccd1Used : 0
 
-  // Total deductions
-  const totalDeductions = ccd1Used + ccd1bUsed
+  const ccd1bLimit = 50000
+  const ccd1bUsed = regime === 'old'
+    ? Math.min(Math.max(0, annualContrib - ccd1Limit), ccd1bLimit)
+    : 0
+  const ccd1bMissed = regime === 'old' ? ccd1bLimit - ccd1bUsed : 0
 
-  // Tax comparison
-  const taxWithNPS    = computeTax(annualIncome, regime, totalDeductions)
+  const ccd2LimitCurrentRegime = basicSalary * (regime === 'new' ? newCcd2Pct : oldCcd2Pct)
+  const ccd2Potential = ccd2LimitCurrentRegime
+
+  const section24bLimit = regime === 'old' ? 200000 : 0
+  const section80dLimit = regime === 'old' ? 50000 : 0
+  const section80cLimit = regime === 'old' ? 150000 : 0
+
+  const section24bUsed = regime === 'old'
+    ? Math.min(Math.max(0, Number(userData?.homeLoanInterest24b) || 0), section24bLimit)
+    : 0
+  const section80dUsed = regime === 'old'
+    ? Math.min(Math.max(0, Number(userData?.medicalInsurance80D) || 0), section80dLimit)
+    : 0
+  const section80cUsed = regime === 'old'
+    ? Math.min(Math.max(0, Number(userData?.extra80C) || 0), section80cLimit)
+    : 0
+
+  const oldRegimeDeductionsCurrent = sumAllowedDeductionBlocks({
+    ccd1: ccd1Used,
+    ccd1b: ccd1bUsed,
+    ccd2: Math.max(0, Number(userData?.employerNPSContributionAnnual) || 0),
+    section24b: section24bUsed,
+    section80d: section80dUsed,
+    section80c: section80cUsed,
+  })
+
+  const newRegimeDeductionsCurrent = sumAllowedDeductionBlocks({
+    ccd2: Math.min(Math.max(0, Number(userData?.employerNPSContributionAnnual) || 0), basicSalary * newCcd2Pct),
+  })
+
+  const oldTaxDetails = computeTaxDetailed(annualIncome, 'old', oldRegimeDeductionsCurrent)
+  const newTaxDetails = computeTaxDetailed(annualIncome, 'new', newRegimeDeductionsCurrent)
+
+  const recommendedRegime = oldTaxDetails.taxPayable <= newTaxDetails.taxPayable ? 'old' : 'new'
+  const potentialSavings = Math.abs(oldTaxDetails.taxPayable - newTaxDetails.taxPayable)
+
+  const breakevenPoint = calculateBreakevenDeductions(annualIncome)
+  const leakageInfo = calculateTaxLeakage(userData)
+
+  const currentDeductions = regime === 'new' ? newRegimeDeductionsCurrent : oldRegimeDeductionsCurrent
+  const taxWithNPS = computeTax(annualIncome, regime, currentDeductions)
   const taxWithoutNPS = computeTax(annualIncome, regime, 0)
-  const taxSaved      = taxWithoutNPS - taxWithNPS
-  const potentialSaving = computeTax(annualIncome, regime, 0) -
-    computeTax(annualIncome, regime, ccd1Limit + ccd1bLimit)
 
   return {
-    annualIncome, basicSalary, regime,
+    oldTax: oldTaxDetails.taxPayable,
+    newTax: newTaxDetails.taxPayable,
+    recommendedRegime,
+    breakevenPoint,
+    taxLeakage: leakageInfo.leakage,
+    potentialSavings,
+    potentialSaving: potentialSavings,
+    marginalReliefApplied: newTaxDetails.marginalReliefApplied,
+
+    annualIncome,
+    basicSalary,
+    regime,
     ccd1: { limit: ccd1Limit, used: ccd1Used, missed: ccd1Missed },
     ccd1b: { limit: ccd1bLimit, used: ccd1bUsed, missed: ccd1bMissed },
-    ccd2: { potential: ccd2Potential },
-    taxSaved,
-    potentialSaving,
+    ccd2: { potential: ccd2Potential, limitOld: basicSalary * oldCcd2Pct, limitNew: basicSalary * newCcd2Pct },
+    section24b: { limit: section24bLimit, used: section24bUsed },
+    section80d: { limit: section80dLimit, used: section80dUsed },
+    section80c: { limit: section80cLimit, used: section80cUsed },
     taxWithNPS,
     taxWithoutNPS,
+    taxSaved: taxWithoutNPS - taxWithNPS,
+    oldTaxDetails,
+    newTaxDetails,
+    theoreticalMinimumTax: leakageInfo.theoreticalMinimumTax,
   }
 }

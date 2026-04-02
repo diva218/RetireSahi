@@ -7,11 +7,19 @@ const ALGORITHM = 'AES-GCM';
 const SALT = import.meta.env.VITE_ENCRYPTION_SALT || 'retiresahi-v1-2025';
 
 // These fields are encrypted before EVERY Firestore write
-export const SENSITIVE_FIELDS = [
+export const ENCRYPTED_FIELDS = [
   'monthlyIncome',
   'npsContribution',
   'npsCorpus',
   'totalSavings',
+  'homeLoanInterest',
+  'lifeInsurance_80C',
+  'elss_ppf_80C',
+  'medicalInsurance_80D',
+  'educationLoanInterest_80E',
+  'houseRentAllowance_HRA',
+  'actualRentPaid',
+  'leaveTravelAllowance_LTA',
   'projectedValue',
   'requiredCorpus',
   'monthlyGap',
@@ -23,6 +31,8 @@ export const SENSITIVE_FIELDS = [
   'blendedReturn',
   'basicSalaryPct',
 ];
+
+export const SENSITIVE_FIELDS = ENCRYPTED_FIELDS;
 
 // These fields stay readable — non-sensitive
 export const NON_SENSITIVE_FIELDS = [
@@ -133,7 +143,7 @@ export async function decryptField(encryptedObj, uid) {
 export async function encryptUserData(userData, uid) {
   const result = { ...userData };
   await Promise.all(
-    SENSITIVE_FIELDS.map(async (field) => {
+    ENCRYPTED_FIELDS.map(async (field) => {
       if (result[field] !== undefined && result[field] !== null) {
         result[field] = await encryptField(result[field], uid);
       }
@@ -147,7 +157,7 @@ export async function decryptUserData(encryptedData, uid) {
 
   const result = { ...encryptedData };
   await Promise.all(
-    SENSITIVE_FIELDS.map(async (field) => {
+    ENCRYPTED_FIELDS.map(async (field) => {
       if (result[field]?.__encrypted) {
         result[field] = await decryptField(result[field], uid);
       }

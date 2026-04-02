@@ -7,7 +7,7 @@ import { auth, db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { getScoreBand, calculateRetirement } from '../utils/math';
-import { UserContext } from './UserContext';
+import { UserContext, withInitialUserData } from './UserContext';
 import { decryptUserData } from '../utils/encryption';
 
 export default function DashboardLayout({ children, title, userData: passedUserData }) {
@@ -18,7 +18,7 @@ export default function DashboardLayout({ children, title, userData: passedUserD
   const [loadError, setLoadError] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const userData = passedUserData || fetchedUserData;
+  const userData = withInitialUserData(passedUserData || fetchedUserData);
   const setUserData = setFetchedUserData;
 
   useEffect(() => {

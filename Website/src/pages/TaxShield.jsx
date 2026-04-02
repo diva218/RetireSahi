@@ -1,294 +1,39 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Shield, Zap, TrendingUp, Info, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
-import { computeTaxSavings, computeTax, NEW_REGIME_SLABS, OLD_REGIME_SLABS } from '../utils/math';
+import React from 'react';
+import { ShieldAlert, Construction } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
-import { useUser } from '../components/UserContext';
-import InfoTooltip from '../components/InfoTooltip';
-import { TAX_SHIELD_TIPS } from '../constants/tooltips';
-
-const formatIndian = (num) => {
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    maximumFractionDigits: 0
-  }).format(num);
-};
-
 const PageContent = () => {
-  const navigate = useNavigate();
-  const { userData } = useUser();
-   const [showAdvanced, setShowAdvanced] = useState(false);
-  
-  // Custom states for what-if tax scenarios
-  const [investments, setInvestments] = useState({
-    extra80C: 0,
-      nps80CCD1B: 50000
-  });
-
-   const employerNPS = useMemo(() => {
-      if (!userData) return 0;
-      const savingsInfo = computeTaxSavings(userData);
-      return Math.round(savingsInfo.ccd2?.potential || 0);
-   }, [userData]);
-
-  const taxAnalysis = useMemo(() => {
-    if (!userData) return null;
-    const taxData = computeTaxSavings(userData);
-    const annualIncome = (parseFloat(userData.monthlyIncome) || 0) * 12;
-
-    const newRegimeTax = computeTax(annualIncome, 'new', 0);
-   const oldRegimeTax = computeTax(annualIncome, 'old', Math.min(150000, investments.extra80C) + taxData.ccd1.used + investments.nps80CCD1B + employerNPS);
-    const taxDifference = oldRegimeTax - newRegimeTax;
-
-    let headline = '';
-    let savings = 0;
-    
-    if (taxDifference > 0) {
-      savings = taxDifference;
-      headline = `NEW REGIME SAVES YOU ${formatIndian(taxDifference)} VS OLD REGIME`;
-    } else if (taxDifference < 0) {
-      savings = Math.abs(taxDifference);
-      headline = `OLD REGIME SAVES YOU ${formatIndian(Math.abs(taxDifference))} VS NEW REGIME`;
-    } else {
-      headline = `BOTH REGIMES RESULT IN SAME TAX FOR YOU`;
-    }
-
-    return {
-      annualIncome,
-      headline,
-      savings,
-      newRegime: { tax: newRegimeTax, slabs: NEW_REGIME_SLABS },
-      oldRegime: { tax: oldRegimeTax, slabs: OLD_REGIME_SLABS },
-      bestRegime: newRegimeTax < oldRegimeTax ? 'new' : 'old'
-    };
-   }, [userData, investments, employerNPS]);
-
-  if (!userData) return null;
-
-   const isOptimized = taxAnalysis.savings === 0;
-   const shouldShowAdvanced = !isOptimized || showAdvanced;
-
   return (
-    <div className="p-4 md:p-8 space-y-12 max-w-6xl mx-auto pb-32">
-       {/* 1. Hero Summary */}
-       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-          <div className="lg:col-span-7 bg-[#8B5CF6] border-2 border-[#1E293B] rounded-[32px] p-8 lg:p-10 text-white pop-shadow-lg relative overflow-hidden flex flex-col justify-between">
-             <div className="relative z-10">
-                <div className="flex items-center gap-3 mb-6">
-                   <Zap className="text-[#FBBF24]" fill="currentColor" />
-                   <span className="font-black uppercase tracking-[3px] text-xs opacity-70">Tax Intelligence</span>
-                </div>
-                 {isOptimized ? (
-                    <div>
-                      <span className="bg-[#34D399] border-2 border-[#1E293B] rounded-full px-3 py-1 font-black uppercase text-[10px] tracking-widest inline-block mb-4 text-[#1E293B] shadow-[2px_2px_0_0_#1E293B]">✦ TAX OPTIMIZED</span>
-                      <h1 className="font-heading font-black text-3xl md:text-5xl lg:text-5xl leading-tight mb-6 uppercase tracking-tight">Tax Position Optimized.</h1>
-                      <p className="font-bold text-sm md:text-base max-w-lg leading-relaxed text-white/60">
-                         No immediate tax action needed with your current profile. You are already on the most efficient path for this year.
-                      </p>
-                    </div>
-                 ) : (
-                    <>
-                      <h2 className="font-heading font-black text-3xl md:text-5xl lg:text-5xl leading-tight mb-6 uppercase tracking-tight">
-                         {taxAnalysis.headline}
-                      </h2>
-                      <p className="text-white/60 font-bold text-sm md:text-base max-w-lg leading-relaxed">
-                         Based on your annual gross income of <span className="text-white">{formatIndian(taxAnalysis.annualIncome)}</span> and current NPS contributions.
-                      </p>
-                    </>
-                 )}
-             </div>
-             
-             <div className="mt-12 flex flex-wrap gap-4 relative z-10">
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex-1 min-w-[150px]">
-                   <div className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1">New Regime Tax</div>
-                   <div className="font-heading font-bold text-2xl">{formatIndian(taxAnalysis.newRegime.tax)}</div>
-                </div>
-                <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex-1 min-w-[150px]">
-                   <div className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1">Old Regime Tax</div>
-                   <div className="font-heading font-bold text-2xl">{formatIndian(taxAnalysis.oldRegime.tax)}</div>
-                </div>
-             </div>
+    <div className="min-h-[70vh] p-4 md:p-8 max-w-5xl mx-auto flex items-center justify-center">
+      <section className="w-full rounded-[36px] border-2 border-[#1E293B] bg-white p-8 md:p-12 pop-shadow-lg relative overflow-hidden">
+        <div className="absolute right-0 top-0 h-56 w-56 translate-x-1/3 -translate-y-1/3 rounded-full bg-[#FBBF24]/20" />
+        <div className="absolute left-0 bottom-0 h-72 w-72 -translate-x-1/2 translate-y-1/2 rounded-full bg-[#8B5CF6]/10" />
 
-             {/* Background Shapes */}
-             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full translate-x-1/2 -translate-y-1/2" />
-             <Shield className="absolute bottom-[-20px] right-[-20px] w-48 h-48 text-white/5 rotate-[-15deg] pointer-events-none" />
+        <div className="relative z-10 flex flex-col items-center text-center gap-6">
+          <div className="inline-flex items-center gap-3 rounded-full border-2 border-[#1E293B] bg-[#FFFDF5] px-4 py-2 text-[10px] font-black uppercase tracking-[4px] text-[#1E293B] shadow-[3px_3px_0_0_#1E293B]">
+            <Construction className="h-4 w-4 text-[#F97316]" />
+            Under Construction
           </div>
 
-          <div className="lg:col-span-5 bg-white border-2 border-[#1E293B] rounded-[32px] p-8 pop-shadow-lg flex flex-col justify-between">
-             <div className="space-y-6">
-                <h3 className="font-heading font-black text-2xl uppercase tracking-widest text-[#1E293B]">NPS Benefits</h3>
-                <div className="space-y-4">
-                   <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 rounded-full bg-[#34D399]/10 border-2 border-[#1E293B] flex items-center justify-center shrink-0">
-                         <CheckCircle2 className="w-5 h-5 text-[#34D399]" />
-                      </div>
-                      <div>
-                         <div className="font-black text-sm uppercase tracking-wide flex items-center gap-1">80CCD(1B) Bonus <InfoTooltip text={TAX_SHIELD_TIPS.section80CCD1B} size={12} /></div>
-                         <p className="text-xs font-bold text-[#1E293B]/50 leading-relaxed max-w-xs">Exclusive ₹50,000 deduction for NPS subscribers only in the Old Regime.</p>
-                      </div>
-                   </div>
-                   <div className="flex items-start gap-4">
-                      <div className="w-8 h-8 rounded-full bg-[#8B5CF6]/10 border-2 border-[#1E293B] flex items-center justify-center shrink-0">
-                         <CheckCircle2 className="w-5 h-5 text-[#8B5CF6]" />
-                      </div>
-                      <div>
-                         <div className="font-black text-sm uppercase tracking-wide flex items-center gap-1">80CCD(2) Corporate <InfoTooltip text={TAX_SHIELD_TIPS.section80CCD2} size={12} /></div>
-                         <p className="text-xs font-bold text-[#1E293B]/50 leading-relaxed max-w-xs">Up to 10% basic salary deduction allowed in BOTH regimes. (14% for Govt)</p>
-                      </div>
-                   </div>
-                </div>
-             </div>
-             
-             <div className="bg-[#FFFDF5] border-2 border-[#1E293B] border-dashed rounded-2xl p-4 mt-8">
-                <div className="flex items-center gap-2 text-[#EF4444] mb-2 font-black text-[10px] uppercase tracking-widest">
-                   <AlertCircle className="w-4 h-4" /> Pro Tip
-                </div>
-                <p className="text-xs font-bold text-[#1E293B]/70 leading-relaxed">
-                   Switching to the New Regime? Standard deduction is now ₹75,000. You still get NPS corporate benefits!
-                </p>
-             </div>
-          </div>
-       </section>
-
-          {isOptimized && (
-             <section className="bg-white border-2 border-[#1E293B] rounded-[24px] p-6 md:p-8 pop-shadow">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                   <div>
-                      <h3 className="font-heading font-black text-xl md:text-2xl uppercase tracking-widest text-[#1E293B]">No Immediate Tax Action Needed</h3>
-                      <p className="text-sm font-bold text-[#1E293B]/60 mt-2 leading-relaxed">
-                         Keep this as a periodic check. Revisit after salary changes, bonus cycles, or employer contribution updates.
-                      </p>
-                   </div>
-                   <button
-                      onClick={() => setShowAdvanced((prev) => !prev)}
-                      className="px-6 py-3 border-2 border-[#1E293B] rounded-full font-black uppercase tracking-widest text-xs bg-[#FFFDF5] hover:bg-[#F1F5F9] transition-all"
-                   >
-                      {showAdvanced ? 'Hide Detailed Tax View' : 'Show Detailed Tax View'}
-                   </button>
-                </div>
-             </section>
-          )}
-
-       {/* 2. Slab Visualization */}
-          {shouldShowAdvanced && (
-          <section className="space-y-8">
-          <div className="flex items-center gap-4">
-             <h2 className="font-heading font-black text-3xl uppercase tracking-widest leading-none">Tax Slab Pulse</h2>
-             <div className="flex-1 h-1 bg-[#1E293B] relative opacity-10"></div>
+          <div className="w-20 h-20 rounded-full border-2 border-[#1E293B] bg-[#FFFDF5] flex items-center justify-center shadow-[4px_4px_0_0_#1E293B]">
+            <ShieldAlert className="h-10 w-10 text-[#EF4444]" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-             {/* New Regime Slabs */}
-             <div className="space-y-6">
-                <div className="flex justify-between items-end">
-                   <h3 className="font-black text-xl uppercase tracking-wider text-[#8B5CF6] flex items-center gap-2">New Regime <InfoTooltip text={TAX_SHIELD_TIPS.newRegime} size={14} /></h3>
-                   <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full">Default FY 2025-26</span>
-                </div>
-                <div className="space-y-3">
-                   {NEW_REGIME_SLABS.map((slab, i) => {
-                      const prev = i === 0 ? 0 : NEW_REGIME_SLABS[i-1].limit;
-                      const range = slab.limit === Infinity ? `Above ${formatIndian(prev)}` : `${formatIndian(prev)} - ${formatIndian(slab.limit)}`;
-                      return (
-                        <div key={i} className="flex items-center gap-4">
-                           <div className="w-16 text-[10px] font-black text-slate-400">{slab.rate * 100}%</div>
-                           <div className="flex-1 h-10 bg-white border-2 border-[#1E293B] rounded-xl overflow-hidden relative group transition-all">
-                              <div className="absolute inset-0 bg-[#8B5CF6]/5 group-hover:bg-[#8B5CF6]/10 transition-colors" />
-                              <div className="absolute inset-y-0 left-0 bg-[#8B5CF6]" style={{ width: `${slab.rate * 100 * 2.5}%` }} />
-                              <div className="absolute inset-0 flex items-center px-4 justify-between transition-transform duration-300">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-[#1E293B]">{range}</span>
-                              </div>
-                           </div>
-                        </div>
-                      );
-                   })}
-                </div>
-             </div>
+          <div className="space-y-3 max-w-2xl">
+            <h1 className="font-heading text-3xl md:text-5xl font-black uppercase tracking-tight text-[#1E293B] leading-tight">
+              Tax Shield is being rebuilt
+            </h1>
+            <p className="text-sm md:text-base font-bold leading-relaxed text-[#1E293B]/70">
+              This section is not ready yet. We are redesigning the tax experience, so for now the dashboard will show this placeholder instead of the full Tax Shield view.
+            </p>
+          </div>
 
-             {/* Old Regime Slabs */}
-             <div className="space-y-6">
-                <div className="flex justify-between items-end">
-                   <h3 className="font-black text-xl uppercase tracking-wider text-[#34D399] flex items-center gap-2">Old Regime <InfoTooltip text={TAX_SHIELD_TIPS.oldRegime} size={14} /></h3>
-                   <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-full">Deduction Based</span>
-                </div>
-                <div className="space-y-3">
-                   {OLD_REGIME_SLABS.map((slab, i) => {
-                      const prev = i === 0 ? 0 : OLD_REGIME_SLABS[i-1].limit;
-                      const range = slab.limit === Infinity ? `Above ${formatIndian(prev)}` : `${formatIndian(prev)} - ${formatIndian(slab.limit)}`;
-                      return (
-                        <div key={i} className="flex items-center gap-4">
-                           <div className="w-16 text-[10px] font-black text-slate-400">{slab.rate * 100}%</div>
-                           <div className="flex-1 h-10 bg-white border-2 border-[#1E293B] rounded-xl overflow-hidden relative group transition-all">
-                              <div className="absolute inset-0 bg-[#34D399]/5 group-hover:bg-[#34D399]/10 transition-colors" />
-                              <div className="absolute inset-y-0 left-0 bg-[#34D399]" style={{ width: `${slab.rate * 100 * 2.5}%` }} />
-                              <div className="absolute inset-0 flex items-center px-4 justify-between transition-transform duration-300">
-                                 <span className="text-[10px] font-black uppercase tracking-widest text-[#1E293B]">{range}</span>
-                              </div>
-                           </div>
-                        </div>
-                      );
-                   })}
-                </div>
-             </div>
+          <div className="rounded-[28px] border-2 border-dashed border-[#1E293B]/20 bg-[#FFFDF5] px-6 py-5 max-w-xl">
+            <p className="text-xs md:text-sm font-black uppercase tracking-[3px] text-[#EF4444]">
+              Coming soon: a full tax battle mode with strategy cards, leakage analysis, and personalized optimization.
+            </p>
           </div>
-       </section>
-       )}
-
-       {/* 3. Personalized Settings (What If) */}
-       {shouldShowAdvanced && (
-       <section className="bg-white border-2 border-[#1E293B] rounded-[32px] p-8 lg:p-12 pop-shadow-lg relative overflow-hidden group">
-          <div className="flex flex-col lg:flex-row gap-12 items-center">
-             <div className="lg:w-1/3">
-                <h3 className="font-heading font-black text-3xl uppercase tracking-widest mb-4">Precision Tweak</h3>
-                <p className="text-sm font-bold text-[#1E293B]/60 leading-relaxed uppercase tracking-wider text-[11px]">
-                   Add your other tax-saving investments to see if the Old Regime becomes more beneficial for you.
-                </p>
-             </div>
-             
-             <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
-                <div className="space-y-4">
-                   <label className="text-[10px] font-black uppercase tracking-[3px] text-slate-400 flex items-center gap-1">Sec 80C (PPF, ELSS, Insurance) <InfoTooltip text={TAX_SHIELD_TIPS.section80C} size={12} /></label>
-                   <div className="relative">
-                      <span className="absolute left-6 top-1/2 -translate-y-1/2 font-bold text-slate-300">₹</span>
-                      <input 
-                         type="number" step="1000"
-                         value={investments.extra80C}
-                         onChange={e => setInvestments({...investments, extra80C: parseInt(e.target.value) || 0})}
-                         className="w-full bg-slate-50 border-2 border-[#1E293B] rounded-full p-4 pl-12 font-black text-xl outline-none focus:border-[#8B5CF6] transition-all" 
-                      />
-                   </div>
-                </div>
-                <div className="space-y-4">
-                   <label className="text-[10px] font-black uppercase tracking-[3px] text-slate-400 flex items-center gap-1">NPS Bonus 80CCD(1B) <InfoTooltip text={TAX_SHIELD_TIPS.nps80CCD1B} size={12} /></label>
-                   <div className="flex gap-3">
-                      {[0, 25000, 50000].map(val => (
-                         <button 
-                            key={val}
-                            onClick={() => setInvestments({...investments, nps80CCD1B: val})}
-                            className={`flex-1 py-4 rounded-full border-2 border-[#1E293B] font-black text-[10px] uppercase tracking-widest transition-all ${investments.nps80CCD1B === val ? 'bg-[#FBBF24] shadow-[3px_3px_0_0_#1E293B] -translate-y-1' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-                         >
-                            {val === 0 ? 'Skip' : formatIndian(val)}
-                         </button>
-                      ))}
-                   </div>
-                </div>
-             </div>
-          </div>
-          
-          <div className="mt-12 pt-12 border-t-2 border-[#1E293B]/10 flex flex-col md:flex-row justify-between items-center gap-8">
-             <div className="flex items-center gap-3">
-                <TrendingUp className="text-[#8B5CF6]" />
-                <span className="font-black uppercase tracking-widest text-[11px]">Potential Annual Savings: <span className="text-[#8B5CF6] text-base ml-2 tracking-normal">{formatIndian(taxAnalysis.savings)}</span></span>
-             </div>
-             <button 
-               onClick={() => navigate('/dashboard')}
-               className="px-8 py-4 bg-[#1E293B] text-white border-2 border-[#1E293B] rounded-full font-black uppercase tracking-widest text-xs flex items-center gap-4 group pop-shadow hover:-translate-y-1 transition-all"
-             >
-                Dashboard Pulse <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-             </button>
-          </div>
-       </section>
-       )}
+        </div>
+      </section>
     </div>
   );
 };

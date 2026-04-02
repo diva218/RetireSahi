@@ -5,6 +5,7 @@ import { db, auth } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { calculateRetirement, getScoreBand } from '../utils/math';
 import { encryptUserData } from '../utils/encryption';
+import { INITIAL_USER_DATA } from '../components/UserContext';
 
 const COLORS = {
   bg: '#FFFDF5',
@@ -21,6 +22,7 @@ const MIN_MONTHLY_INCOME = 1000;
 const MAX_MONTHLY_INCOME = 100000000; // 10 Cr
 const MAX_NPS_CONTRIBUTION = 100000000; // 10 Cr
 const MAX_NPS_CORPUS = 1000000000; // 100 Cr
+const MAX_TAX_INPUT = 10000000; // 1 Cr
 
 const parseNumericInput = (value) => {
   if (typeof value === 'number') {
@@ -39,6 +41,12 @@ const parseNumericInput = (value) => {
 };
 
 const parsePositiveNumber = (value) => parseNumericInput(value);
+
+const parseCurrencyInput = (value) => {
+  const parsed = parseNumericInput(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.min(parsed, MAX_TAX_INPUT);
+};
 
 const parseIntegerInput = (value, fallback) => {
   const parsed = parseNumericInput(value);
@@ -142,24 +150,52 @@ const InputField = ({ label, type, name, value, onChange, suffix, placeholder, h
   </div>
 );
 
+const TaxProfileField = ({ label, name, value, max, step = 5000, onNumberChange, onSliderChange }) => (
+  <div className="space-y-3">
+    <div className="flex items-center justify-between gap-3">
+      <label className="block text-xs font-black uppercase tracking-widest text-[#1E293B]/70">{label}</label>
+      <span className="text-xs font-black text-[#8B5CF6]">₹{Math.round(Number(value) || 0).toLocaleString('en-IN')}</span>
+    </div>
+    <input
+      type="range"
+      min="0"
+      max={max}
+      step={step}
+      name={name}
+      value={Math.max(0, Math.min(max, Number(value) || 0))}
+      onChange={onSliderChange}
+      className="w-full h-2 bg-[#E2E8F0] border border-[#1E293B]/30 rounded-lg appearance-none cursor-pointer accent-[#8B5CF6]"
+    />
+    <div className="relative">
+      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-[#1E293B]/50">₹</span>
+      <input
+        type="number"
+        name={name}
+        value={value}
+        min="0"
+        max={max}
+        onChange={onNumberChange}
+        className="w-full border-2 border-[#1E293B] rounded-xl p-2.5 pl-8 text-sm font-bold bg-white focus:outline-none focus:shadow-[3px_3px_0_0_#8B5CF6]"
+      />
+    </div>
+  </div>
+);
+
 export default function Onboarding() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0); 
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
+    ...INITIAL_USER_DATA,
     firstName: '',
     age: '',
     workContext: '',
     monthlyIncome: '',
-    npsUsage: '', 
+    npsUsage: '',
     npsContribution: '',
     npsCorpus: '',
-    npsEquity: 50,
-    retireAge: 60,
     lifestyle: '',
-    addSavings: false,
     totalSavings: '',
-    taxRegime: 'new'
   });
 
   const clearErrorsForFields = (fields) => {
@@ -181,6 +217,19 @@ export default function Onboarding() {
       return;
     }
 
+    clearErrorsForFields([name]);
+  };
+
+  const handleTaxNumberChange = (e) => {
+    const { name, value } = e.target;
+    const parsed = parseCurrencyInput(value);
+    setFormData((prev) => ({ ...prev, [name]: parsed }));
+    clearErrorsForFields([name]);
+  };
+
+  const handleTaxSliderChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: parseCurrencyInput(value) }));
     clearErrorsForFields([name]);
   };
 
@@ -281,6 +330,17 @@ export default function Onboarding() {
     npsCorpus: formData.npsUsage === 'none' ? 0 : (parseNumericInput(formData.npsCorpus) || (formData.npsUsage === 'upload' ? 120000 : 0)),
     totalSavings: parseNumericInput(formData.totalSavings) || 0,
     retireAge: parseIntegerInput(formData.retireAge, 60),
+    homeLoanInterest: parseCurrencyInput(formData.homeLoanInterest),
+    lifeInsurance_80C: parseCurrencyInput(formData.lifeInsurance_80C),
+    elss_ppf_80C: parseCurrencyInput(formData.elss_ppf_80C),
+    medicalInsurance_80D: parseCurrencyInput(formData.medicalInsurance_80D),
+    educationLoanInterest_80E: parseCurrencyInput(formData.educationLoanInterest_80E),
+    houseRentAllowance_HRA: parseCurrencyInput(formData.houseRentAllowance_HRA),
+    actualRentPaid: parseCurrencyInput(formData.actualRentPaid),
+    leaveTravelAllowance_LTA: parseCurrencyInput(formData.leaveTravelAllowance_LTA),
+    isGovtEmployee: Boolean(formData.isGovtEmployee),
+    basicSalaryPct: Math.max(0.2, Math.min(0.8, Number(formData.basicSalaryPct) || 0.4)),
+    hasOptedForEmployerNPS: Boolean(formData.hasOptedForEmployerNPS),
   }), [formData]);
 
   const results = useMemo(() => calculateRetirement(parsedData), [parsedData]);
@@ -344,7 +404,7 @@ export default function Onboarding() {
         await setDoc(doc(db, 'users', auth.currentUser.uid), encrypted, { merge: true });
       }
       setCalcMsg(0);
-      setStep(8);
+      setStep(9);
     } catch (error) {
       console.error('Firestore Error: ', error);
     }
@@ -354,12 +414,12 @@ export default function Onboarding() {
 
   const [calcMsg, setCalcMsg] = useState(0);
   useEffect(() => {
-    if (step === 8) {
+    if (step === 9) {
       const sequence = [
         () => setCalcMsg(1),
         () => setCalcMsg(2),
         () => setCalcMsg(3),
-        () => setStep(9)
+        () => setStep(10)
       ];
       sequence.forEach((fn, i) => setTimeout(fn, (i + 1) * 800));
     }
@@ -406,7 +466,7 @@ export default function Onboarding() {
         </div>
       )}
 
-      {step >= 1 && step <= 7 && (
+      {step >= 1 && step <= 8 && (
         <div className="z-10 w-full max-w-lg bg-white border-2 border-[#1E293B] rounded-3xl p-6 md:p-8 pop-shadow animate-slide-up flex flex-col relative overflow-hidden h-auto min-h-[450px] max-h-[90vh]">
           <div className="w-full mb-6 shrink-0 relative">
              <div className="flex justify-between items-center mb-3">
@@ -415,14 +475,14 @@ export default function Onboarding() {
                    <ArrowLeft className="w-5 h-5" />
                  </button>
                ) : <div className="w-9 h-9" />}
-               <span className="font-bold uppercase tracking-widest text-[#1E293B]/40 text-xs">Step {step} of 7</span>
+               <span className="font-bold uppercase tracking-widest text-[#1E293B]/40 text-xs">Step {step} of 8</span>
                <div className="w-9 h-9" />
              </div>
              
              <div className="w-full h-2 border-2 border-[#1E293B] rounded-full bg-[#F1F5F9] overflow-hidden">
                <div 
                  className="h-full bg-[#8B5CF6]"
-                 style={{ width: `${(step / 7) * 100}%`, transition: 'width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                 style={{ width: `${(step / 8) * 100}%`, transition: 'width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
                />
              </div>
           </div>
@@ -547,6 +607,58 @@ export default function Onboarding() {
             )}
 
             {step === 7 && (
+              <div className="animate-fade-in space-y-5">
+                <h2 className="font-heading font-extrabold text-2xl md:text-3xl leading-tight text-center">Tax Profile</h2>
+                <p className="text-center text-xs font-bold uppercase tracking-widest text-[#1E293B]/50">Capture deductions, exemptions and employment context</p>
+
+                <div className="bg-[#FFFDF5] border-2 border-[#1E293B] rounded-2xl p-4 space-y-4">
+                  <p className="font-black text-xs uppercase tracking-widest text-[#1E293B]/60">Old Regime Deductions</p>
+                  <TaxProfileField label="Home Loan Interest" name="homeLoanInterest" value={formData.homeLoanInterest} max={2000000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                  <TaxProfileField label="Life Insurance (80C)" name="lifeInsurance_80C" value={formData.lifeInsurance_80C} max={300000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                  <TaxProfileField label="ELSS / PPF (80C)" name="elss_ppf_80C" value={formData.elss_ppf_80C} max={300000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                  <TaxProfileField label="Medical Insurance (80D)" name="medicalInsurance_80D" value={formData.medicalInsurance_80D} max={200000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                  <TaxProfileField label="Education Loan Interest (80E)" name="educationLoanInterest_80E" value={formData.educationLoanInterest_80E} max={1000000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                </div>
+
+                <div className="bg-white border-2 border-[#1E293B] rounded-2xl p-4 space-y-4">
+                  <p className="font-black text-xs uppercase tracking-widest text-[#1E293B]/60">Exemptions</p>
+                  <TaxProfileField label="House Rent Allowance (HRA)" name="houseRentAllowance_HRA" value={formData.houseRentAllowance_HRA} max={1200000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                  <TaxProfileField label="Actual Rent Paid" name="actualRentPaid" value={formData.actualRentPaid} max={1200000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                  <TaxProfileField label="Leave Travel Allowance (LTA)" name="leaveTravelAllowance_LTA" value={formData.leaveTravelAllowance_LTA} max={300000} onNumberChange={handleTaxNumberChange} onSliderChange={handleTaxSliderChange} />
+                </div>
+
+                <div className="bg-white border-2 border-[#1E293B] rounded-2xl p-4 space-y-4">
+                  <p className="font-black text-xs uppercase tracking-widest text-[#1E293B]/60">Employment Context</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => setFormData({ ...formData, isGovtEmployee: false })} className={`py-3 rounded-xl border-2 border-[#1E293B] font-black uppercase tracking-widest text-xs ${!formData.isGovtEmployee ? 'bg-[#34D399] text-[#1E293B] shadow-[3px_3px_0_0_#1E293B]' : 'bg-white text-[#1E293B]'}`}>Private</button>
+                    <button onClick={() => setFormData({ ...formData, isGovtEmployee: true })} className={`py-3 rounded-xl border-2 border-[#1E293B] font-black uppercase tracking-widest text-xs ${formData.isGovtEmployee ? 'bg-[#34D399] text-[#1E293B] shadow-[3px_3px_0_0_#1E293B]' : 'bg-white text-[#1E293B]'}`}>Government</button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-black uppercase tracking-widest text-[#1E293B]/60">Basic Salary % of CTC</label>
+                      <span className="font-black text-[#8B5CF6]">{Math.round((Number(formData.basicSalaryPct) || 0.4) * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="20"
+                      max="80"
+                      step="1"
+                      value={Math.round((Number(formData.basicSalaryPct) || 0.4) * 100)}
+                      onChange={(e) => setFormData({ ...formData, basicSalaryPct: Number(e.target.value) / 100 })}
+                      className="w-full h-2 bg-[#E2E8F0] border border-[#1E293B]/30 rounded-lg appearance-none cursor-pointer accent-[#8B5CF6]"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => setFormData({ ...formData, hasOptedForEmployerNPS: false })} className={`py-3 rounded-xl border-2 border-[#1E293B] font-black uppercase tracking-widest text-xs ${!formData.hasOptedForEmployerNPS ? 'bg-[#1E293B] text-white shadow-[3px_3px_0_0_#FBBF24]' : 'bg-white text-[#1E293B]'}`}>No Employer NPS</button>
+                    <button onClick={() => setFormData({ ...formData, hasOptedForEmployerNPS: true })} className={`py-3 rounded-xl border-2 border-[#1E293B] font-black uppercase tracking-widest text-xs ${formData.hasOptedForEmployerNPS ? 'bg-[#1E293B] text-white shadow-[3px_3px_0_0_#FBBF24]' : 'bg-white text-[#1E293B]'}`}>Employer NPS Enabled</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 8 && (
               <div className="animate-fade-in space-y-6 pt-2 text-center">
                  <h2 className="font-heading font-extrabold text-2xl md:text-3xl leading-tight">Want a more accurate score?</h2>
                  <p className="font-bold text-[#1E293B]/60 uppercase tracking-widest text-sm">Add your details (Optional)</p>
@@ -579,7 +691,7 @@ export default function Onboarding() {
 
           <div className="pt-4 border-t-2 border-[#1E293B]/10 shrink-0 mt-auto">
              <button 
-               onClick={step === 7 ? handleSubmit : handleNext}
+               onClick={step === 8 ? handleSubmit : handleNext}
                 disabled={
                   (step === 1 && (!formData.firstName || !formData.age)) ||
                   (step === 2 && !formData.workContext) ||
@@ -589,7 +701,7 @@ export default function Onboarding() {
                 }
                 className="candy-btn w-full py-4 text-base md:text-lg font-black uppercase tracking-widest pop-shadow flex justify-center items-center gap-3 cursor-pointer"
              >
-                {step === 7 ? 'See My Score' : 'Continue'}
+                {step === 8 ? 'See My Score' : 'Continue'}
                 <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                   <ArrowRight className="text-[#8B5CF6] w-3.5 h-3.5" strokeWidth={4} />
                 </div>
@@ -598,7 +710,7 @@ export default function Onboarding() {
         </div>
       )}
 
-      {step === 8 && (
+      {step === 9 && (
         <div className="z-10 animate-fade-in flex flex-col items-center">
            <h2 className="font-heading font-extrabold text-3xl md:text-4xl mb-12 text-center leading-tight">Calculating your<br/>retirement score...</h2>
            <div className="space-y-6 w-full max-w-sm px-4">
@@ -621,7 +733,7 @@ export default function Onboarding() {
         </div>
       )}
 
-      {step === 9 && (
+      {step === 10 && (
         <div className="z-10 w-full max-w-4xl animate-slide-up flex flex-col lg:flex-row gap-8 items-center justify-center">
           <div className="w-full lg:w-1/2 flex justify-center">
              <FinalScoreArc score={results.score} />
