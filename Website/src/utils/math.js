@@ -4,6 +4,12 @@
 // and FY 2026-27 tax compliance
 // ============================================
 
+import {
+  LIFESTYLE_MULTIPLIERS,
+  LIFESTYLE_MODES,
+  normalizeLifestyleConfig,
+} from '../constants/lifestyleConfig.js'
+
 // ── SCHEME RETURNS (10-year averages) ───────
 export const SCHEME_E_RETURN = 0.1269   // Equity
 export const SCHEME_C_RETURN = 0.0887   // Corporate Bonds
@@ -33,12 +39,7 @@ export const COLORS = {
   blue: '#3B82F6'
 }
 
-// ── LIFESTYLE MULTIPLIERS ───────────────────
-export const LIFESTYLE_MULTIPLIERS = {
-  essential:   0.40,
-  comfortable: 0.60,
-  premium:     0.80,
-}
+export { LIFESTYLE_MULTIPLIERS }
 
 // ── PFRDA EQUITY CAP BY AGE ─────────────────
 export function getMaxEquityPct(age) {
@@ -141,6 +142,27 @@ export function getMilestoneAge(milestone, currentAge, corpus, monthlyPmt, annua
 // ── CORE RETIREMENT CALCULATOR ──────────────
 // Single source of truth — used by onboarding,
 // dashboard, simulator, and what-if scenarios
+function resolveLifestyleInputs(data, monthlyIncome) {
+  const rawLifestyle = (data?.lifestyle || 'comfortable').toLowerCase()
+  const lifestyleConfig = normalizeLifestyleConfig(data?.lifestyleConfig, rawLifestyle)
+  const lifestyle = lifestyleConfig.preset
+  const lifestyleMultiplier = LIFESTYLE_MULTIPLIERS[lifestyle] || LIFESTYLE_MULTIPLIERS.comfortable
+  const modeledMonthlyIncome = Math.max(monthlyIncome, MIN_MODEL_MONTHLY_INCOME)
+  const customMonthlySpend = Math.max(0, Number(lifestyleConfig.customMonthlySpend) || 0)
+  const useCustomSpend = lifestyleConfig.mode === LIFESTYLE_MODES.CUSTOM && customMonthlySpend > 0
+  const monthlySpendToday = useCustomSpend
+    ? customMonthlySpend
+    : modeledMonthlyIncome * lifestyleMultiplier
+
+  return {
+    lifestyle,
+    lifestyleConfig,
+    lifestyleMode: lifestyleConfig.mode,
+    lifestyleMultiplier,
+    monthlySpendToday,
+  }
+}
+
 export function calculateRetirement(data) {
   const age         = parseInt(data.age) || 25
   const retireAge   = parseInt(data.retireAge) || 60
@@ -154,7 +176,13 @@ export function calculateRetirement(data) {
   const otherSavings       = data.addSavings ? Math.max(0, parseFloat(data.totalSavings) || 0) : 0
   const totalCorpus        = npsCorpus + otherSavings
   const equityPct          = parseFloat(data.npsEquity) || 50
-  const lifestyle          = (data.lifestyle || 'comfortable').toLowerCase()
+  const {
+    lifestyle,
+    lifestyleConfig,
+    lifestyleMode,
+    lifestyleMultiplier,
+    monthlySpendToday,
+  } = resolveLifestyleInputs(data, monthlyIncome)
 
   // Blended annual return
   const annualReturn = computeBlendedReturn(equityPct, age)
@@ -170,11 +198,9 @@ export function calculateRetirement(data) {
   const projectedValue = fvCorpus + fvContributions
 
   // ── REQUIRED CORPUS ──
-  const lifestyleMultiplier = LIFESTYLE_MULTIPLIERS[lifestyle] || 0.60
-  const modeledMonthlyIncome = Math.max(monthlyIncome, MIN_MODEL_MONTHLY_INCOME)
   // Inflation-adjusted monthly spend at retirement
   const monthlySpendAtRetirement =
-    modeledMonthlyIncome * lifestyleMultiplier * Math.pow(1 + INFLATION_RATE, years)
+    monthlySpendToday * Math.pow(1 + INFLATION_RATE, years)
   // Required corpus using SWR (on lump sum portion only)
   // Since 40% is annuitized, we need the lump sum (60%) to cover
   // (monthly spend - annuity income) via SWR
@@ -206,6 +232,9 @@ export function calculateRetirement(data) {
     // Inputs (pass-through for convenience)
     age, retireAge, years, monthlyIncome,
     monthlyContrib, totalCorpus, equityPct, lifestyle,
+    lifestyleMode,
+    lifestyleConfig,
+    monthlySpendToday,
 
     // Core outputs
     projectedValue,
@@ -234,6 +263,15 @@ export function calculateRetirement(data) {
 // ── WHAT-IF SCENARIOS ───────────────────────
 export function computeWhatIfScenarios(userData) {
   const base = calculateRetirement(userData)
+  const activeLifestyle = normalizeLifestyleConfig(
+    userData?.lifestyleConfig,
+    userData?.lifestyle || 'comfortable'
+  ).preset
+  const scenarioLifestyle = activeLifestyle === 'premium'
+    ? 'comfortable'
+    : activeLifestyle === 'essential'
+    ? 'comfortable'
+    : 'essential'
 
   const scenarios = [
     {
@@ -272,16 +310,20 @@ export function computeWhatIfScenarios(userData) {
     },
     {
       id: 'lifestyle_switch',
-      title: (userData.lifestyle || 'comfortable') === 'premium'
+      title: activeLifestyle === 'premium'
         ? 'Switch to Comfortable lifestyle'
-        : (userData.lifestyle || 'comfortable') === 'essential'
+        : activeLifestyle === 'essential'
         ? 'Switch to Comfortable lifestyle'
         : 'Switch to Essential lifestyle',
       description: 'Adjust standard of living',
       score: calculateRetirement({
         ...userData,
-        lifestyle: (userData.lifestyle || 'comfortable') === 'comfortable'
-          ? 'essential' : 'comfortable'
+        lifestyle: scenarioLifestyle,
+        lifestyleConfig: {
+          ...normalizeLifestyleConfig(userData?.lifestyleConfig, activeLifestyle),
+          mode: LIFESTYLE_MODES.PRESET,
+          preset: scenarioLifestyle,
+        }
       }).score
     },
     {

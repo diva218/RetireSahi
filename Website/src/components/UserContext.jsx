@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import { createDefaultLifestyleConfig, normalizeLifestyleConfig } from '../constants/lifestyleConfig.js';
 
 export const UserContext = createContext();
 
@@ -13,6 +14,7 @@ export const INITIAL_USER_DATA = {
   npsEquity: 50,
   retireAge: 60,
   lifestyle: '',
+  lifestyleConfig: createDefaultLifestyleConfig('comfortable'),
   addSavings: false,
   totalSavings: '',
   taxRegime: 'new',
@@ -29,10 +31,20 @@ export const INITIAL_USER_DATA = {
   hasOptedForEmployerNPS: false,
 };
 
-export const withInitialUserData = (userData) => ({
-  ...INITIAL_USER_DATA,
-  ...(userData || {}),
-});
+export const withInitialUserData = (userData) => {
+  const merged = {
+    ...INITIAL_USER_DATA,
+    ...(userData || {}),
+  };
+
+  const fallbackLifestyle = merged.lifestyle?.trim()?.toLowerCase() || 'comfortable';
+
+  return {
+    ...merged,
+    lifestyle: fallbackLifestyle,
+    lifestyleConfig: normalizeLifestyleConfig(merged.lifestyleConfig, fallbackLifestyle),
+  };
+};
 
 export const useUser = () => {
   const context = useContext(UserContext);

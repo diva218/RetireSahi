@@ -6,6 +6,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { calculateRetirement, getScoreBand } from '../utils/math';
 import { encryptUserData } from '../utils/encryption';
 import { INITIAL_USER_DATA } from '../components/UserContext';
+import { createDefaultLifestyleConfig } from '../constants/lifestyleConfig.js';
 
 const COLORS = {
   bg: '#FFFDF5',
@@ -330,6 +331,8 @@ export default function Onboarding() {
     npsCorpus: formData.npsUsage === 'none' ? 0 : (parseNumericInput(formData.npsCorpus) || (formData.npsUsage === 'upload' ? 120000 : 0)),
     totalSavings: parseNumericInput(formData.totalSavings) || 0,
     retireAge: parseIntegerInput(formData.retireAge, 60),
+    lifestyle: (formData.lifestyle || 'comfortable').toLowerCase(),
+    lifestyleConfig: createDefaultLifestyleConfig((formData.lifestyle || 'comfortable').toLowerCase()),
     homeLoanInterest: parseCurrencyInput(formData.homeLoanInterest),
     lifeInsurance_80C: parseCurrencyInput(formData.lifeInsurance_80C),
     elss_ppf_80C: parseCurrencyInput(formData.elss_ppf_80C),

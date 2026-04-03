@@ -1,88 +1,113 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  Home, Coffee, Star, UtensilsCrossed, Heart, Plane, Users, Shield, 
-  ChevronRight, ArrowRight, RotateCcw, CheckCircle2, TrendingUp, Info
+import {
+  Home,
+  Coffee,
+  Star,
+  UtensilsCrossed,
+  Heart,
+  Plane,
+  Users,
+  Shield,
+  ArrowRight,
+  RotateCcw,
+  CheckCircle2,
+  TrendingUp,
+  Info,
+  SlidersHorizontal,
 } from 'lucide-react';
 import InfoTooltip from '../components/InfoTooltip';
 import { DREAM_PLANNER_TIPS } from '../constants/tooltips';
 import { db, auth } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
-import { calculateRetirement, formatIndian, INFLATION_RATE, LIFESTYLE_MULTIPLIERS } from '../utils/math';
+import { calculateRetirement, formatIndian, INFLATION_RATE } from '../utils/math';
 import DashboardLayout from '../components/DashboardLayout';
 import { useUser } from '../components/UserContext';
 import { encryptUserData } from '../utils/encryption';
+import {
+  LIFESTYLE_MULTIPLIERS,
+  LIFESTYLE_MODES,
+  LIFESTYLE_CATEGORY_BLUEPRINT,
+  normalizeLifestyleConfig,
+  normalizeCategoryMix,
+} from '../constants/lifestyleConfig.js';
 
 const COLORS = {
   emerald: '#34D399',
   violet: '#8B5CF6',
   pink: '#F472B6',
   amber: '#FBBF24',
-  slate: '#1E293B'
 };
 
-const CATEGORIES = [
-  { name: "Housing & Utilities", icon: Home,      pct: 0.35, color: "#8B5CF6" },
-  { name: "Food & Dining",       icon: UtensilsCrossed, pct: 0.20, color: "#F472B6" },
-  { name: "Healthcare",          icon: Heart,     pct: 0.15, color: "#EF4444" },
-  { name: "Travel & Leisure",    icon: Plane,     pct: 0.15, color: "#FBBF24" },
-  { name: "Family & Misc",       icon: Users,     pct: 0.10, color: "#34D399" },
-  { name: "Emergency Buffer",    icon: Shield,    pct: 0.05, color: "#3B82F6" },
-];
+const CATEGORY_ICONS = {
+  housing: Home,
+  food: UtensilsCrossed,
+  healthcare: Heart,
+  travel: Plane,
+  family: Users,
+  buffer: Shield,
+};
 
-const LifestyleCard = ({ type, selected, onClick, userData }) => {
+const CATEGORIES = LIFESTYLE_CATEGORY_BLUEPRINT.map((item) => ({
+  ...item,
+  icon: CATEGORY_ICONS[item.id] || Home,
+}));
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const LifestyleCard = ({ type, selected, onClick, monthlyIncome, yearsToRetire }) => {
   const configs = {
     essential: {
       accent: COLORS.emerald,
       icon: Home,
-      title: "Essential",
-      subtitle: "Basic needs covered",
-      details: ["Simple housing & utilities", "Home-cooked meals, occasional dining", "Local travel only", "Basic healthcare"],
+      title: 'Essential',
+      subtitle: 'Basic needs covered',
+      details: ['Simple housing & utilities', 'Home-cooked meals, occasional dining', 'Local travel only', 'Basic healthcare'],
       multiplier: LIFESTYLE_MULTIPLIERS.essential,
-      tag: "40% of current income"
+      tag: '40% of current income',
     },
     comfortable: {
       accent: COLORS.violet,
       icon: Coffee,
-      title: "Comfortable",
-      subtitle: "Travel and daily flexibility",
-      details: ["Good housing in your city", "Dining out 2–3x/week", "Annual domestic travel", "Health insurance covered"],
+      title: 'Comfortable',
+      subtitle: 'Travel and daily flexibility',
+      details: ['Good housing in your city', 'Dining out 2-3x/week', 'Annual domestic travel', 'Health insurance covered'],
       multiplier: LIFESTYLE_MULTIPLIERS.comfortable,
-      tag: "60% of current income",
-      badge: "MOST CHOSEN"
+      tag: '60% of current income',
+      badge: 'MOST CHOSEN',
     },
     premium: {
       accent: COLORS.pink,
       icon: Star,
-      title: "Premium",
-      subtitle: "Financial freedom & luxury",
-      details: ["Premium housing or owned home", "Fine dining, social life", "International travel yearly", "Comprehensive healthcare"],
+      title: 'Premium',
+      subtitle: 'Financial freedom and luxury',
+      details: ['Premium housing or owned home', 'Fine dining, social life', 'International travel yearly', 'Comprehensive healthcare'],
       multiplier: LIFESTYLE_MULTIPLIERS.premium,
-      tag: "80% of current income"
-    }
+      tag: '80% of current income',
+    },
   };
 
   const config = configs[type];
   const Icon = config.icon;
-  const yearsToRetire = userData.retireAge - userData.age;
-  const monthlyNeedToday = userData.monthlyIncome * config.multiplier;
+  const monthlyNeedToday = monthlyIncome * config.multiplier;
   const monthlyNeedRetirement = monthlyNeedToday * Math.pow(1 + INFLATION_RATE, yearsToRetire);
 
   return (
     <button
       onClick={() => onClick(type)}
       className={`relative flex-1 bg-white border-2 rounded-[16px] p-6 text-left transition-all duration-300 group ${
-        selected 
-          ? 'border-[#8B5CF6] shadow-[6px_6px_0_0_#8B5CF6] scale-[1.02]' 
+        selected
+          ? 'border-[#8B5CF6] shadow-[6px_6px_0_0_#8B5CF6] scale-[1.02]'
           : 'border-[#1E293B] shadow-[4px_4px_0_0_#1E293B] hover:-translate-y-1 hover:shadow-[6px_6px_0_0_#1E293B]'
       }`}
+      type="button"
     >
       {config.badge && (
         <div className="absolute -top-3 -right-3 bg-[#FBBF24] border-2 border-[#1E293B] px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest rotate-3 shadow-[2px_2px_0_0_#1E293B]">
           {config.badge}
         </div>
       )}
-      
-      <div className={`w-12 h-12 rounded-full flex items-center justify-center border-2 border-[#1E293B] mb-4 shadow-[2px_2px_0_0_#1E293B]`} style={{ backgroundColor: `${config.accent}22` }}>
+
+      <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-[#1E293B] mb-4 shadow-[2px_2px_0_0_#1E293B]" style={{ backgroundColor: `${config.accent}22` }}>
         <Icon className="w-6 h-6" style={{ color: config.accent }} strokeWidth={2.5} />
       </div>
 
@@ -99,7 +124,9 @@ const LifestyleCard = ({ type, selected, onClick, userData }) => {
       </ul>
 
       <div className="pt-4 border-t border-slate-100 mb-4">
-        <div className="text-[10px] font-black text-[#1E293B]/40 uppercase tracking-widest mb-1">Monthly Need <InfoTooltip text={DREAM_PLANNER_TIPS.monthlyNeed} size={12} /></div>
+        <div className="text-[10px] font-black text-[#1E293B]/40 uppercase tracking-widest mb-1">
+          Monthly Need <InfoTooltip text={DREAM_PLANNER_TIPS.monthlyNeed} size={12} />
+        </div>
         <div className="flex items-center gap-2">
           <span className="font-heading font-bold text-base">{formatIndian(monthlyNeedToday)}</span>
           <ArrowRight className="w-3 h-3 text-slate-300" />
@@ -114,18 +141,129 @@ const LifestyleCard = ({ type, selected, onClick, userData }) => {
   );
 };
 
-const InflationRealityCheck = ({ yearsToRetire, monthlyIncome, lifestyleMultiplier }) => {
+const ModeSwitcher = ({ mode, onChange }) => (
+  <div className="inline-flex bg-white border-2 border-[#1E293B] rounded-full p-1 pop-shadow">
+    <button
+      type="button"
+      onClick={() => onChange(LIFESTYLE_MODES.PRESET)}
+      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[2px] transition-all ${
+        mode === LIFESTYLE_MODES.PRESET ? 'bg-[#8B5CF6] text-white' : 'text-[#1E293B]/60'
+      }`}
+    >
+      Preset
+    </button>
+    <button
+      type="button"
+      onClick={() => onChange(LIFESTYLE_MODES.CUSTOM)}
+      className={`px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-[2px] transition-all ${
+        mode === LIFESTYLE_MODES.CUSTOM ? 'bg-[#8B5CF6] text-white' : 'text-[#1E293B]/60'
+      }`}
+    >
+      Custom
+    </button>
+  </div>
+);
+
+const CustomLifestyleEditor = ({ customMonthlySpend, onCustomSpendChange, categoryMix, onCategoryChange }) => {
+  const totalShare = Object.values(categoryMix).reduce((sum, value) => sum + value, 0);
+
+  return (
+    <div className="bg-white border-2 border-[#1E293B] rounded-[20px] p-6 md:p-8 pop-shadow space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full border-2 border-[#1E293B] bg-[#8B5CF6]/10 flex items-center justify-center shadow-[2px_2px_0_0_#1E293B]">
+          <SlidersHorizontal className="w-5 h-5 text-[#8B5CF6]" />
+        </div>
+        <div>
+          <h3 className="font-heading font-black text-xl">Build Your Custom Monthly Lifestyle</h3>
+          <p className="text-xs font-bold uppercase tracking-widest text-[#1E293B]/50">Set your expected monthly spend and distribution.</p>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-[10px] font-black uppercase tracking-widest text-[#1E293B]/50">Monthly spend today</label>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#1E293B]/50 font-black">₹</span>
+          <input
+            type="number"
+            min="0"
+            step="1000"
+            value={Math.round(customMonthlySpend)}
+            onChange={(e) => onCustomSpendChange(clamp(Number(e.target.value) || 0, 0, 5000000))}
+            className="w-full border-2 border-[#1E293B] rounded-xl pl-9 pr-4 py-3 font-bold text-sm focus:outline-none focus:shadow-[3px_3px_0_0_#8B5CF6]"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {CATEGORIES.map((cat) => {
+          const share = Number(categoryMix[cat.id] || 0);
+          const monthlyBucket = customMonthlySpend * (share / 100);
+          const Icon = cat.icon;
+
+          return (
+            <div key={cat.id} className="border-2 border-[#1E293B]/10 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full border-2 border-[#1E293B] flex items-center justify-center" style={{ backgroundColor: `${cat.color}22` }}>
+                    <Icon className="w-4 h-4" style={{ color: cat.color }} strokeWidth={2.5} />
+                  </div>
+                  <div className="font-bold text-sm uppercase tracking-widest flex items-center gap-1">
+                    {cat.name} <InfoTooltip text={DREAM_PLANNER_TIPS[cat.tooltipKey] || DREAM_PLANNER_TIPS.categoryHousing} size={12} />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-[#1E293B]/40">Monthly</div>
+                  <div className="font-heading font-bold text-sm">{formatIndian(monthlyBucket)}</div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="0.1"
+                  value={share}
+                  onChange={(e) => onCategoryChange(cat.id, Number(e.target.value))}
+                  className="w-full h-2 bg-slate-100 border border-[#1E293B]/20 rounded-lg appearance-none cursor-pointer"
+                  style={{ accentColor: cat.color }}
+                />
+                <div className="w-20 relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.1"
+                    value={share}
+                    onChange={(e) => onCategoryChange(cat.id, Number(e.target.value))}
+                    className="w-full border-2 border-[#1E293B]/20 rounded-lg px-2 py-1.5 text-sm font-black text-right"
+                  />
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-[#1E293B]/50">%</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className={`text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-full inline-flex border-2 border-[#1E293B] ${Math.abs(totalShare - 100) < 0.1 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+        Total allocation: {totalShare.toFixed(1)}%
+      </div>
+    </div>
+  );
+};
+
+const InflationRealityCheck = ({ yearsToRetire, monthlySpendToday }) => {
   const multiplier = Math.pow(1.06, yearsToRetire);
   const [displayMultiplier, setDisplayMultiplier] = useState(1);
-  const monthlySpendToday = monthlyIncome * lifestyleMultiplier;
   const monthlySpendRetirement = monthlySpendToday * multiplier;
 
   useEffect(() => {
     let start = 1;
     const end = multiplier;
-    if (start === end) return;
-    
-    let timer = setInterval(() => {
+    if (start === end) return undefined;
+
+    const timer = setInterval(() => {
       start += (end - 1) / 30;
       if (start >= end) {
         setDisplayMultiplier(end);
@@ -134,13 +272,16 @@ const InflationRealityCheck = ({ yearsToRetire, monthlyIncome, lifestyleMultipli
         setDisplayMultiplier(start);
       }
     }, 50);
+
     return () => clearInterval(timer);
   }, [multiplier]);
 
   return (
     <div className="bg-[#FBBF24] border-2 border-[#1E293B] rounded-[24px] p-8 pop-shadow flex flex-col md:flex-row items-center justify-between gap-8">
       <div className="space-y-2 text-center md:text-left">
-        <div className="text-xs font-black uppercase tracking-[3px] text-[#1E293B]">🔥 Inflation Reality Check <InfoTooltip text={DREAM_PLANNER_TIPS.inflationReality} size={12} /></div>
+        <div className="text-xs font-black uppercase tracking-[3px] text-[#1E293B]">
+          Inflation Reality Check <InfoTooltip text={DREAM_PLANNER_TIPS.inflationReality} size={12} />
+        </div>
         <h2 className="font-heading font-extrabold text-2xl md:text-3xl text-[#1E293B] leading-tight">
           Your {formatIndian(monthlySpendToday)}/month lifestyle today...
         </h2>
@@ -151,10 +292,10 @@ const InflationRealityCheck = ({ yearsToRetire, monthlyIncome, lifestyleMultipli
           Assuming 6% inflation over {yearsToRetire} years
         </div>
       </div>
-      
+
       <div className="text-center group">
         <div className="font-heading font-black text-7xl md:text-8xl text-[#1E293B] leading-none transition-transform group-hover:scale-110 duration-500">
-          {displayMultiplier.toFixed(1)}×
+          {displayMultiplier.toFixed(1)}x
         </div>
         <div className="text-xs font-black uppercase tracking-widest text-[#1E293B]/60 mt-2">
           purchasing power needed
@@ -164,106 +305,198 @@ const InflationRealityCheck = ({ yearsToRetire, monthlyIncome, lifestyleMultipli
   );
 };
 
-const CategoryBreakdown = ({ monthlySpendToday, monthlySpendRetirement }) => {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <h2 className="font-heading font-extrabold text-2xl md:text-3xl uppercase tracking-widest leading-none">Where Will Your Money Go?</h2>
-        <div className="flex-1 h-[2px] bg-[#1E293B]/10" />
-      </div>
+const CategoryBreakdown = ({ categoryMix, monthlySpendToday, monthlySpendRetirement }) => (
+  <div className="space-y-6">
+    <div className="flex items-center gap-4">
+      <h2 className="font-heading font-extrabold text-2xl md:text-3xl uppercase tracking-widest leading-none">Where Will Your Money Go?</h2>
+      <div className="flex-1 h-[2px] bg-[#1E293B]/10" />
+    </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {CATEGORIES.map((cat, i) => {
-          const Icon = cat.icon;
-          const today = monthlySpendToday * cat.pct;
-          const future = monthlySpendRetirement * cat.pct;
-          
-          return (
-            <div key={i} className="bg-white border-2 border-[#1E293B] rounded-[16px] p-5 pop-shadow group hover:-translate-y-1 transition-all">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center border-2 border-[#1E293B] shadow-[2px_2px_0_0_#1E293B]" style={{ backgroundColor: `${cat.color}22` }}>
-                  <Icon className="w-5 h-5 text-[#1E293B]" strokeWidth={2.5} style={{ color: cat.color }} />
-                </div>
-                <div className="font-bold text-sm text-[#1E293B] uppercase tracking-widest flex items-center gap-1">{cat.name} <InfoTooltip text={DREAM_PLANNER_TIPS[`category${cat.name.split(' ')[0]}`] || DREAM_PLANNER_TIPS.categoryHousing} size={12} /></div>
-              </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {CATEGORIES.map((cat) => {
+        const Icon = cat.icon;
+        const share = Number(categoryMix[cat.id] || 0) / 100;
+        const today = monthlySpendToday * share;
+        const future = monthlySpendRetirement * share;
 
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-center">
-                  <div className="text-[9px] font-black text-[#1E293B]/30 uppercase tracking-widest mb-1">Today</div>
-                  <div className="font-bold text-sm tracking-tight">{formatIndian(today)}</div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-200" />
-                <div className="text-center">
-                  <div className="text-[9px] font-black text-[#1E293B]/30 uppercase tracking-widest mb-1">Retirement</div>
-                  <div className="font-bold text-sm tracking-tight" style={{ color: cat.color }}>{formatIndian(future)}</div>
-                </div>
+        return (
+          <div key={cat.id} className="bg-white border-2 border-[#1E293B] rounded-[16px] p-5 pop-shadow group hover:-translate-y-1 transition-all">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center border-2 border-[#1E293B] shadow-[2px_2px_0_0_#1E293B]" style={{ backgroundColor: `${cat.color}22` }}>
+                <Icon className="w-5 h-5 text-[#1E293B]" strokeWidth={2.5} style={{ color: cat.color }} />
               </div>
-
-              <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-[#1E293B]/10">
-                <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${cat.pct * 100}%`, backgroundColor: cat.color }} />
-              </div>
-              <div className="mt-2 text-[9px] font-black text-[#1E293B]/40 uppercase tracking-widest text-right">
-                {cat.pct * 100}% of spend
+              <div className="font-bold text-sm text-[#1E293B] uppercase tracking-widest flex items-center gap-1">
+                {cat.name} <InfoTooltip text={DREAM_PLANNER_TIPS[cat.tooltipKey] || DREAM_PLANNER_TIPS.categoryHousing} size={12} />
               </div>
             </div>
-          );
-        })}
-      </div>
+
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-center">
+                <div className="text-[9px] font-black text-[#1E293B]/30 uppercase tracking-widest mb-1">Today</div>
+                <div className="font-bold text-sm tracking-tight">{formatIndian(today)}</div>
+              </div>
+              <ArrowRight className="w-4 h-4 text-slate-200" />
+              <div className="text-center">
+                <div className="text-[9px] font-black text-[#1E293B]/30 uppercase tracking-widest mb-1">Retirement</div>
+                <div className="font-bold text-sm tracking-tight" style={{ color: cat.color }}>{formatIndian(future)}</div>
+              </div>
+            </div>
+
+            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden border border-[#1E293B]/10">
+              <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${share * 100}%`, backgroundColor: cat.color }} />
+            </div>
+            <div className="mt-2 text-[9px] font-black text-[#1E293B]/40 uppercase tracking-widest text-right">
+              {(share * 100).toFixed(1)}% of spend
+            </div>
+          </div>
+        );
+      })}
     </div>
-  );
-};
+  </div>
+);
+
+function rebalanceCategoryMix(currentMix, categoryId, nextShare) {
+  const ids = Object.keys(currentMix);
+  if (!ids.includes(categoryId)) return currentMix;
+
+  const clampedShare = clamp(Number(nextShare) || 0, 0, 100);
+  const otherIds = ids.filter((id) => id !== categoryId);
+  const remaining = Math.max(0, 100 - clampedShare);
+  const otherTotal = otherIds.reduce((sum, id) => sum + (Number(currentMix[id]) || 0), 0);
+
+  const nextMix = { ...currentMix, [categoryId]: clampedShare };
+
+  if (otherIds.length === 0) {
+    return normalizeCategoryMix(nextMix);
+  }
+
+  if (otherTotal <= 0) {
+    const evenShare = remaining / otherIds.length;
+    otherIds.forEach((id) => {
+      nextMix[id] = evenShare;
+    });
+    return normalizeCategoryMix(nextMix);
+  }
+
+  otherIds.forEach((id) => {
+    const sourceShare = Number(currentMix[id]) || 0;
+    nextMix[id] = (sourceShare / otherTotal) * remaining;
+  });
+
+  return normalizeCategoryMix(nextMix);
+}
 
 const PageContent = () => {
   const { userData, setUserData } = useUser();
-  const [selectedLifestyle, setSelectedLifestyle] = useState(userData?.lifestyle || 'comfortable');
   const [showToast, setShowToast] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    if (userData?.lifestyle) {
-      setSelectedLifestyle(userData.lifestyle);
-    }
-  }, [userData?.lifestyle]);
+  const baselineLifestyle = (userData?.lifestyle || 'comfortable').toLowerCase();
+  const baselineConfig = useMemo(
+    () => normalizeLifestyleConfig(userData?.lifestyleConfig, baselineLifestyle),
+    [userData?.lifestyleConfig, baselineLifestyle]
+  );
+  const baselineConfigKey = useMemo(() => JSON.stringify(baselineConfig), [baselineConfig]);
 
-  const baseResults = useMemo(() => userData ? calculateRetirement(userData) : null, [userData]);
-  
+  const monthlyIncome = Math.max(0, Number(userData?.monthlyIncome) || 0);
+  const yearsToRetire = Math.max(1, (Number(userData?.retireAge) || 60) - (Number(userData?.age) || 30));
+
+  const [planMode, setPlanMode] = useState(baselineConfig.mode);
+  const [selectedLifestyle, setSelectedLifestyle] = useState(baselineConfig.preset);
+  const [customMonthlySpend, setCustomMonthlySpend] = useState(
+    baselineConfig.customMonthlySpend || Math.round(monthlyIncome * (LIFESTYLE_MULTIPLIERS[baselineConfig.preset] || 0.6))
+  );
+  const [categoryMix, setCategoryMix] = useState(baselineConfig.categories);
+
+  useEffect(() => {
+    const hydrated = JSON.parse(baselineConfigKey);
+    setPlanMode(hydrated.mode);
+    setSelectedLifestyle(hydrated.preset);
+    const fallbackSpend = Math.round(monthlyIncome * (LIFESTYLE_MULTIPLIERS[hydrated.preset] || 0.6));
+    setCustomMonthlySpend(hydrated.customMonthlySpend || fallbackSpend);
+    setCategoryMix(hydrated.categories);
+  }, [baselineConfigKey, monthlyIncome]);
+
+  const simulationConfig = useMemo(
+    () =>
+      normalizeLifestyleConfig(
+        {
+          mode: planMode,
+          preset: selectedLifestyle,
+          customMonthlySpend,
+          categories: categoryMix,
+        },
+        selectedLifestyle
+      ),
+    [planMode, selectedLifestyle, customMonthlySpend, categoryMix]
+  );
+
+  const simulationConfigKey = useMemo(() => JSON.stringify(simulationConfig), [simulationConfig]);
+  const hasChanges = simulationConfigKey !== baselineConfigKey;
+
+  const baseResults = useMemo(() => (userData ? calculateRetirement(userData) : null), [userData]);
+
   const simResults = useMemo(() => {
     if (!userData) return null;
-    return calculateRetirement({ ...userData, lifestyle: selectedLifestyle });
-  }, [userData, selectedLifestyle]);
+    return calculateRetirement({
+      ...userData,
+      lifestyle: selectedLifestyle,
+      lifestyleConfig: simulationConfig,
+    });
+  }, [userData, selectedLifestyle, simulationConfig]);
 
-  const yearsToRetire = userData ? userData.retireAge - userData.age : 30;
+  if (!userData || !baseResults || !simResults) return null;
+
+  const handleModeChange = (nextMode) => {
+    setPlanMode(nextMode);
+    if (nextMode === LIFESTYLE_MODES.CUSTOM && customMonthlySpend <= 0) {
+      const fallbackSpend = Math.round(monthlyIncome * (LIFESTYLE_MULTIPLIERS[selectedLifestyle] || 0.6));
+      setCustomMonthlySpend(fallbackSpend);
+    }
+  };
+
+  const handleCategoryChange = (categoryId, nextShare) => {
+    setCategoryMix((prev) => rebalanceCategoryMix(prev, categoryId, nextShare));
+  };
+
+  const handleReset = () => {
+    const hydrated = JSON.parse(baselineConfigKey);
+    setPlanMode(hydrated.mode);
+    setSelectedLifestyle(hydrated.preset);
+    const fallbackSpend = Math.round(monthlyIncome * (LIFESTYLE_MULTIPLIERS[hydrated.preset] || 0.6));
+    setCustomMonthlySpend(hydrated.customMonthlySpend || fallbackSpend);
+    setCategoryMix(hydrated.categories);
+  };
 
   const handleSave = async () => {
     if (!auth.currentUser) return;
     setIsSaving(true);
+
     try {
       const dataToSave = {
         lifestyle: selectedLifestyle,
+        lifestyleConfig: simulationConfig,
         score: simResults.score,
         projectedValue: simResults.projectedValue,
         requiredCorpus: simResults.requiredCorpus,
         monthlyGap: simResults.monthlyGap,
         monthlySpendAtRetirement: simResults.monthlySpendAtRetirement,
-        updatedAt: new Date().toISOString()
+        monthlySpendToday: simResults.monthlySpendToday,
+        updatedAt: new Date().toISOString(),
       };
+
       const encrypted = await encryptUserData(dataToSave, auth.currentUser.uid);
       await setDoc(doc(db, 'users', auth.currentUser.uid), encrypted, { merge: true });
+
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-      setUserData(prev => ({ ...prev, ...dataToSave }));
-    } catch (e) {
-      console.error(e);
+      setUserData((prev) => ({ ...prev, ...dataToSave }));
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsSaving(false);
     }
   };
-
-  const handleReset = () => {
-    setSelectedLifestyle(userData.lifestyle || 'comfortable');
-  };
-
-  if (!userData) return null;
 
   const baseScore = baseResults.scorePrecise ?? baseResults.score;
   const simScore = simResults.scorePrecise ?? simResults.score;
@@ -283,40 +516,43 @@ const PageContent = () => {
 
   return (
     <div className="p-4 md:p-8 space-y-12 max-w-6xl mx-auto pb-32">
-      {/* Lifestyle Selector */}
       <section className="space-y-6">
         <div className="text-center md:text-left space-y-2">
-          <h2 className="font-heading font-extrabold text-2xl md:text-4xl">🌙 What kind of retirement do you want?</h2>
-          <p className="text-sm md:text-base font-bold text-[#1E293B]/50 uppercase tracking-widest">Pick your lifestyle. We'll tell you if you can afford it.</p>
+          <h2 className="font-heading font-extrabold text-2xl md:text-4xl">What kind of retirement do you want?</h2>
+          <p className="text-sm md:text-base font-bold text-[#1E293B]/50 uppercase tracking-widest">Choose a preset or tune every bucket yourself.</p>
         </div>
-        
-        <div className="flex flex-col md:flex-row gap-6">
-          <LifestyleCard type="essential" selected={selectedLifestyle === 'essential'} onClick={setSelectedLifestyle} userData={userData} />
-          <LifestyleCard type="comfortable" selected={selectedLifestyle === 'comfortable'} onClick={setSelectedLifestyle} userData={userData} />
-          <LifestyleCard type="premium" selected={selectedLifestyle === 'premium'} onClick={setSelectedLifestyle} userData={userData} />
-        </div>
+
+        <ModeSwitcher mode={planMode} onChange={handleModeChange} />
+
+        {planMode === LIFESTYLE_MODES.PRESET ? (
+          <div className="flex flex-col md:flex-row gap-6">
+            <LifestyleCard type="essential" selected={selectedLifestyle === 'essential'} onClick={setSelectedLifestyle} monthlyIncome={monthlyIncome} yearsToRetire={yearsToRetire} />
+            <LifestyleCard type="comfortable" selected={selectedLifestyle === 'comfortable'} onClick={setSelectedLifestyle} monthlyIncome={monthlyIncome} yearsToRetire={yearsToRetire} />
+            <LifestyleCard type="premium" selected={selectedLifestyle === 'premium'} onClick={setSelectedLifestyle} monthlyIncome={monthlyIncome} yearsToRetire={yearsToRetire} />
+          </div>
+        ) : (
+          <CustomLifestyleEditor
+            customMonthlySpend={customMonthlySpend}
+            onCustomSpendChange={setCustomMonthlySpend}
+            categoryMix={categoryMix}
+            onCategoryChange={handleCategoryChange}
+          />
+        )}
       </section>
 
-      {/* Inflation Reality Check */}
-      <InflationRealityCheck 
-        yearsToRetire={yearsToRetire} 
-        monthlyIncome={userData.monthlyIncome} 
-        lifestyleMultiplier={LIFESTYLE_MULTIPLIERS[selectedLifestyle]} 
-      />
+      <InflationRealityCheck yearsToRetire={yearsToRetire} monthlySpendToday={simResults.monthlySpendToday} />
 
-      {/* Category Breakdown */}
-      <CategoryBreakdown 
-        monthlySpendToday={userData.monthlyIncome * LIFESTYLE_MULTIPLIERS[selectedLifestyle]}
+      <CategoryBreakdown
+        categoryMix={simulationConfig.categories}
+        monthlySpendToday={simResults.monthlySpendToday}
         monthlySpendRetirement={simResults.monthlySpendAtRetirement}
       />
 
-      {/* Live Score Preview */}
       <section className="bg-white border-2 border-[#1E293B] rounded-[24px] overflow-hidden pop-shadow">
         <div className="w-1.5 absolute left-0 top-0 h-full bg-[#8B5CF6]" />
         <div className="p-8 flex flex-col md:flex-row items-center justify-between gap-12">
           <div className="flex-1 space-y-8 w-full">
             <div className="grid grid-cols-2 gap-8 items-center">
-              {/* Current */}
               <div className="space-y-4 text-center">
                 <div className="text-[10px] font-black text-[#1E293B]/40 uppercase tracking-[2px]">CURRENT</div>
                 <div className="flex flex-col items-center">
@@ -324,107 +560,123 @@ const PageContent = () => {
                     {formatScore(baseScore)}
                   </div>
                   <div className="mt-2 text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-                    {userData.lifestyle}
+                    {baselineConfig.preset}
                   </div>
                 </div>
               </div>
 
-              {/* Simulated */}
               <div className="space-y-4 text-center relative">
-                  <div className="absolute left-[-24px] top-1/2 -translate-y-1/2 hidden md:block">
-                    <ArrowRight className="w-8 h-8 text-slate-200" />
-                  </div>
-                <div className="text-[10px] font-black text-[#8B5CF6] uppercase tracking-[2px]">WITH THIS LIFESTYLE</div>
+                <div className="absolute left-[-24px] top-1/2 -translate-y-1/2 hidden md:block">
+                  <ArrowRight className="w-8 h-8 text-slate-200" />
+                </div>
+                <div className="text-[10px] font-black text-[#8B5CF6] uppercase tracking-[2px]">WITH THIS PLAN</div>
                 <div className="flex flex-col items-center">
-                  <div 
+                  <div
                     className="w-24 h-24 rounded-full border-4 flex items-center justify-center font-heading font-black text-3xl transition-all duration-500 shadow-[6px_6px_0_0_rgba(0,0,0,0.05)]"
                     style={{ borderColor: scoreInfo(simScore).color, color: scoreInfo(simScore).color }}
                   >
                     {formatScore(simScore)}
                   </div>
                   <div className="flex items-center gap-2 mt-2">
-                      <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-[#1E293B]" style={{ backgroundColor: `${COLORS.violet}22`, color: COLORS.violet }}>
-                        {selectedLifestyle}
+                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border border-[#1E293B]" style={{ backgroundColor: `${COLORS.violet}22`, color: COLORS.violet }}>
+                      {planMode === LIFESTYLE_MODES.CUSTOM ? 'custom' : selectedLifestyle}
+                    </span>
+                    {(scoreDelta !== 0 || cappedButMoved) && (
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border border-[#1E293B] ${scoreDelta > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
+                        {scoreDelta !== 0
+                          ? `${scoreDelta > 0 ? '+' : ''}${formatScore(scoreDelta)} PTS`
+                          : `${uncappedDelta > 0 ? '+' : ''}${formatScore(uncappedDelta)} RAW`}
                       </span>
-                      {(scoreDelta !== 0 || cappedButMoved) && (
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full border border-[#1E293B] ${scoreDelta > 0 ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                          {scoreDelta !== 0
-                            ? `${scoreDelta > 0 ? '+' : ''}${formatScore(scoreDelta)} PTS`
-                            : `${uncappedDelta > 0 ? '+' : ''}${formatScore(uncappedDelta)} RAW`}
-                        </span>
-                      )}
+                    )}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className={`p-4 rounded-xl border-2 border-[#1E293B] font-bold text-xs uppercase tracking-widest flex items-center gap-3 ${
-              scoreDelta > 0 ? 'bg-[#D1FAE5] border-[#34D399] text-[#065F46]' : 
-              scoreDelta < 0 ? 'bg-[#FFFBEB] border-[#FBBF24] text-[#92400E]' : 
-              'bg-white text-slate-500'
-            }`}>
+            <div
+              className={`p-4 rounded-xl border-2 border-[#1E293B] font-bold text-xs uppercase tracking-widest flex items-center gap-3 ${
+                scoreDelta > 0
+                  ? 'bg-[#D1FAE5] border-[#34D399] text-[#065F46]'
+                  : scoreDelta < 0
+                  ? 'bg-[#FFFBEB] border-[#FBBF24] text-[#92400E]'
+                  : 'bg-white text-slate-500'
+              }`}
+            >
               {scoreDelta > 0 ? (
-                <> <CheckCircle2 className="w-5 h-5" /> This lifestyle improves your retirement outlook ✓ </>
+                <>
+                  <CheckCircle2 className="w-5 h-5" /> This plan improves your retirement outlook.
+                </>
               ) : scoreDelta < 0 ? (
-                <> <Info className="w-5 h-5" /> This lifestyle requires more contributions to stay on track </>
+                <>
+                  <Info className="w-5 h-5" /> This plan needs higher contributions to stay on track.
+                </>
               ) : cappedButMoved ? (
-                 <> <Info className="w-5 h-5" /> Score is capped at 100, but underlying readiness moved {uncappedDelta > 0 ? 'up' : 'down'} ({uncappedDelta > 0 ? '+' : ''}{formatScore(uncappedDelta)} raw). </>
+                <>
+                  <Info className="w-5 h-5" /> Score is capped at 100, but underlying readiness moved {uncappedDelta > 0 ? 'up' : 'down'} ({uncappedDelta > 0 ? '+' : ''}{formatScore(uncappedDelta)} raw).
+                </>
               ) : (
-                  "No change to your retirement score"
+                'No change to your retirement score'
               )}
             </div>
           </div>
 
           <div className="hidden lg:block w-[300px] h-[300px] relative">
-              <div className="absolute inset-0 bg-[#8B5CF6]/5 rounded-full border-2 border-dashed border-[#8B5CF6]/20 animate-spin-slow" />
-              <div className="absolute inset-10 bg-white border-2 border-[#1E293B] rounded-[32px] pop-shadow flex items-center justify-center">
-                <div style={{ textAlign: 'center', padding: '16px' }}>
-                  <TrendingUp style={{ color: '#8B5CF6', width: 32, height: 32, margin: '0 auto' }} />
-                  <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 8 }}>
-                    SCORE IMPACT
-                  </p>
-                  <p style={{ fontSize: '1.5rem', fontWeight: 800, color: scoreDelta > 0 ? '#34D399' : scoreDelta < 0 ? '#EF4444' : '#94A3B8', fontFamily: 'Outfit' }}>
-                    {scoreDelta !== 0
-                      ? `${scoreDelta > 0 ? '+' : ''}${formatScore(scoreDelta)} pts`
-                      : cappedButMoved
-                        ? `${uncappedDelta > 0 ? '+' : ''}${formatScore(uncappedDelta)} raw`
-                        : '—'}
-                  </p>
-                </div>
+            <div className="absolute inset-0 bg-[#8B5CF6]/5 rounded-full border-2 border-dashed border-[#8B5CF6]/20 animate-spin-slow" />
+            <div className="absolute inset-10 bg-white border-2 border-[#1E293B] rounded-[32px] pop-shadow flex items-center justify-center">
+              <div style={{ textAlign: 'center', padding: '16px' }}>
+                <TrendingUp style={{ color: '#8B5CF6', width: 32, height: 32, margin: '0 auto' }} />
+                <p style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 8 }}>
+                  SCORE IMPACT
+                </p>
+                <p style={{ fontSize: '1.5rem', fontWeight: 800, color: scoreDelta > 0 ? '#34D399' : scoreDelta < 0 ? '#EF4444' : '#94A3B8', fontFamily: 'Outfit' }}>
+                  {scoreDelta !== 0
+                    ? `${scoreDelta > 0 ? '+' : ''}${formatScore(scoreDelta)} pts`
+                    : cappedButMoved
+                    ? `${uncappedDelta > 0 ? '+' : ''}${formatScore(uncappedDelta)} raw`
+                    : '-'}
+                </p>
               </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Sticky Action Bar */}
       <div className="fixed bottom-0 left-0 lg:left-60 right-0 h-20 bg-white border-t-2 border-[#1E293B] z-40 px-6 flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Simulating</span>
-            <span className="text-sm font-bold text-[#1E293B] uppercase tracking-wide">{selectedLifestyle} lifestyle</span>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={handleReset}
-              className="px-6 py-2.5 rounded-full font-black text-xs uppercase tracking-widest text-slate-400 hover:text-[#1E293B] transition-colors flex items-center gap-2"
-            >
-              <RotateCcw className="w-4 h-4" /> Reset
-            </button>
-            <button 
-              onClick={handleSave}
-              disabled={isSaving || selectedLifestyle === userData.lifestyle}
-              className={`px-8 py-3 bg-[#8B5CF6] border-2 border-[#1E293B] rounded-full shadow-[4px_4px_0_0_#1E293B] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0_0_#1E293B] transition-all text-white text-xs font-black uppercase tracking-[2px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              {isSaving ? 'Saving...' : <><CheckCircle2 className="w-4 h-4" /> Save Changes</>}
-            </button>
-          </div>
+        <div className="flex flex-col">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Simulating</span>
+          <span className="text-sm font-bold text-[#1E293B] uppercase tracking-wide">
+            {planMode === LIFESTYLE_MODES.CUSTOM ? 'custom lifestyle' : `${selectedLifestyle} preset`}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={!hasChanges}
+            className="px-6 py-2.5 rounded-full font-black text-xs uppercase tracking-widest text-slate-400 enabled:hover:text-[#1E293B] transition-colors flex items-center gap-2 disabled:opacity-40"
+          >
+            <RotateCcw className="w-4 h-4" /> Reset
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving || !hasChanges}
+            className="px-8 py-3 bg-[#8B5CF6] border-2 border-[#1E293B] rounded-full shadow-[4px_4px_0_0_#1E293B] enabled:hover:-translate-y-0.5 enabled:active:translate-y-0.5 enabled:active:shadow-[2px_2px_0_0_#1E293B] transition-all text-white text-xs font-black uppercase tracking-[2px] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSaving ? 'Saving...' : (
+              <>
+                <CheckCircle2 className="w-4 h-4" /> Save Changes
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
-      {/* Toast */}
       {showToast && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 animate-slide-up">
           <div className="bg-[#FBBF24] border-2 border-[#1E293B] px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-[4px_4px_0_0_#1E293B] flex items-center gap-3">
-              🎉 Dream updated! Your dashboard reflects your new plan.
+            Dream updated! Your dashboard reflects your new plan.
           </div>
         </div>
       )}
