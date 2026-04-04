@@ -641,7 +641,7 @@ const PageContent = () => {
         </div>
       </section>
 
-      <div className="fixed bottom-0 left-0 lg:left-60 right-0 h-20 bg-white border-t-2 border-[#1E293B] z-40 px-6 flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.05)]">
+      <div className="fixed bottom-0 left-0 dashboard-fixed-offset right-0 h-20 bg-white border-t-2 border-[#1E293B] z-40 px-6 flex items-center justify-between shadow-[0_-8px_30px_rgba(0,0,0,0.05)]">
         <div className="flex flex-col">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Simulating</span>
           <span className="text-sm font-bold text-[#1E293B] uppercase tracking-wide">

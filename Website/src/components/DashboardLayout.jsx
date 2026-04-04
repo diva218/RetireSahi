@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Home, Shield, Moon, Bot, Settings, LogOut, Menu, X, Bell, BarChart2 
+  Home, Shield, Moon, Bot, Settings, LogOut, Menu, X, Bell, BarChart2, PanelLeftClose, PanelLeftOpen
 } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -10,6 +10,8 @@ import { getScoreBand, calculateRetirement } from '../utils/math';
 import { UserContext, withInitialUserData } from './UserContext';
 import { decryptUserData } from '../utils/encryption';
 
+const SIDEBAR_STORAGE_KEY = 'retiresahi_sidebar_collapsed';
+
 export default function DashboardLayout({ children, title, userData: passedUserData }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,6 +19,10 @@ export default function DashboardLayout({ children, title, userData: passedUserD
   const [loading, setLoading] = useState(!passedUserData);
   const [loadError, setLoadError] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === 'true';
+  });
 
   const userData = withInitialUserData(passedUserData || fetchedUserData);
   const setUserData = setFetchedUserData;
@@ -49,6 +55,11 @@ export default function DashboardLayout({ children, title, userData: passedUserD
     });
     return () => unsub();
   }, [navigate, passedUserData]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(isSidebarCollapsed));
+  }, [isSidebarCollapsed]);
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -98,7 +109,10 @@ export default function DashboardLayout({ children, title, userData: passedUserD
 
   return (
     <UserContext.Provider value={{ userData, setUserData }}>
-      <div className="min-h-screen bg-[#FFFDF5] text-[#1E293B] relative font-['Plus_Jakarta_Sans']">
+      <div
+        className="min-h-screen bg-[#FFFDF5] text-[#1E293B] relative font-['Plus_Jakarta_Sans']"
+        style={{ '--sidebar-width': isSidebarCollapsed ? '6rem' : '15rem' }}
+      >
         <style>{`
           h1, h2, h3, .font-heading { font-family: 'Outfit', sans-serif; }
           .pop-shadow { box-shadow: 4px 4px 0px 0px #1E293B; }
@@ -107,42 +121,48 @@ export default function DashboardLayout({ children, title, userData: passedUserD
           .animate-slide-right { animation: slideRight 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
           .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
           @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          @media (min-width: 1024px) {
+            .dashboard-fixed-offset { left: var(--sidebar-width) !important; }
+          }
         `}</style>
 
         {/* Sidebar (Desktop) */}
-        <aside className="fixed left-0 top-0 h-full w-60 bg-[#1E293B] z-40 hidden lg:flex flex-col p-6 overflow-hidden">
+        <aside className={`fixed left-0 top-0 h-full bg-[#1E293B] z-40 hidden lg:flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-24 p-4 items-center' : 'w-60 p-6'}`}>
           <div className="flex items-center gap-3 mb-12 cursor-pointer" onClick={() => navigate('/dashboard')}>
             <div className="w-10 h-10 bg-[#8B5CF6] rounded-full border-2 border-white flex items-center justify-center font-heading font-extrabold text-white text-xl">R</div>
-            <span className="font-heading font-extrabold text-white text-xl uppercase tracking-widest">RetireSahi</span>
+            {!isSidebarCollapsed && <span className="font-heading font-extrabold text-white text-xl uppercase tracking-widest whitespace-nowrap animate-fade-in">RetireSahi</span>}
           </div>
 
-          <nav className="flex-1 space-y-4">
+          <nav className="flex-1 space-y-4 w-full">
             {navItems.map(item => (
               <button 
                 key={item.label}
+                title={isSidebarCollapsed ? item.label : undefined}
                 onClick={() => navigate(item.path)}
-                className={`w-full flex items-center gap-4 py-3 px-4 font-bold transition-all ${location.pathname === item.path ? 'sidebar-item-active' : 'text-white/70 hover:bg-white/10 rounded-full'}`}
+                className={`w-full flex items-center py-3 font-bold transition-all ${location.pathname === item.path ? 'sidebar-item-active' : 'text-white/70 hover:bg-white/10 rounded-full'} ${isSidebarCollapsed ? 'justify-center px-0' : 'gap-4 px-4'}`}
               >
-                <item.icon className="w-5 h-5" strokeWidth={2.5} />
-                <span>{item.label}</span>
+                <item.icon className="w-5 h-5 shrink-0" strokeWidth={2.5} />
+                {!isSidebarCollapsed && <span className="whitespace-nowrap animate-fade-in">{item.label}</span>}
               </button>
             ))}
           </nav>
 
-          <div className="pt-8 border-t border-white/10 mt-auto">
-            <div className="flex items-center gap-3 p-2 bg-white/5 rounded-2xl">
+          <div className="pt-8 border-t border-white/10 mt-auto w-full">
+            <div className={`flex items-center p-2 bg-white/5 rounded-2xl ${isSidebarCollapsed ? 'flex-col gap-3 justify-center' : 'gap-3'}`}>
               {auth.currentUser?.photoURL ? (
-                <img src={auth.currentUser.photoURL} alt="User" referrerPolicy="no-referrer" className="w-10 h-10 rounded-full border-2 border-[#8B5CF6]" />
+                <img src={auth.currentUser.photoURL} alt="User" referrerPolicy="no-referrer" className="w-10 h-10 shrink-0 rounded-full border-2 border-[#8B5CF6]" />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-[#8B5CF6] border-2 border-white flex items-center justify-center font-bold text-white uppercase text-lg">
+                <div className="w-10 h-10 shrink-0 rounded-full bg-[#8B5CF6] border-2 border-white flex items-center justify-center font-bold text-white uppercase text-lg">
                   {userData?.firstName?.[0] || 'U'}
                 </div>
               )}
-              <div className="flex flex-col min-w-0">
-                <span className="text-white font-bold text-sm tracking-wide truncate">{userData?.firstName || 'User'}</span>
-                <button onClick={() => navigate('/settings')} className="text-[10px] text-white/50 uppercase tracking-widest font-black hover:text-[#F472B6] text-left">Settings</button>
-              </div>
-              <button onClick={handleLogout} className="ml-auto p-2 text-white/30 hover:text-white transition-colors">
+              {!isSidebarCollapsed && (
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-white font-bold text-sm tracking-wide truncate">{userData?.firstName || 'User'}</span>
+                  <button onClick={() => navigate('/settings')} className="text-[10px] text-white/50 uppercase tracking-widest font-black hover:text-[#F472B6] text-left">Settings</button>
+                </div>
+              )}
+              <button onClick={handleLogout} title={isSidebarCollapsed ? 'Log Out' : undefined} className={`p-2 text-white/30 hover:text-white transition-colors shrink-0 ${!isSidebarCollapsed ? 'ml-auto' : ''}`}>
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
@@ -164,7 +184,7 @@ export default function DashboardLayout({ children, title, userData: passedUserD
         </nav>
 
         {/* Main Content */}
-        <main className="lg:ml-60 min-h-screen flex flex-col relative pb-20 lg:pb-0">
+        <main className={`min-h-screen flex flex-col relative pb-20 lg:pb-0 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-24' : 'lg:ml-60'}`}>
           <div className="absolute inset-0 z-0 pointer-events-none opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(#1E293B 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
 
           {/* Top Bar */}
@@ -175,6 +195,13 @@ export default function DashboardLayout({ children, title, userData: passedUserD
                 className="lg:hidden p-2 -ml-2 text-[#1E293B] hover:bg-slate-50 rounded-lg transition-colors"
               >
                 {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+              <button
+                onClick={() => setIsSidebarCollapsed((prev) => !prev)}
+                className="hidden lg:flex p-2 -ml-1 text-[#1E293B] hover:bg-slate-50 rounded-lg transition-colors"
+                title={isSidebarCollapsed ? 'Expand menu' : 'Collapse menu'}
+              >
+                {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
               </button>
               <h1 className="font-heading font-extrabold text-lg md:text-2xl text-[#1E293B] uppercase tracking-widest truncate">{title}</h1>
             </div>
