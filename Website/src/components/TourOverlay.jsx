@@ -385,7 +385,7 @@ export default function TourOverlay({ steps, onComplete, onSkip }) {
               {currentStep < steps.length - 1 ? (
                 <>Next <ChevronRight className="w-4 h-4" /></>
               ) : (
-                <>Finish <span>🎉</span></>
+                <>Finish <Sparkles className="w-4 h-4" /></>
               )}
             </button>
           </div>

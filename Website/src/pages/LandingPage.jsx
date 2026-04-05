@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowRight, Lock, Zap, IndianRupee, PieChart, Activity, Wallet, ShieldCheck, Sun, Bot, Check, Play, Menu, X } from 'lucide-react';
+import { ArrowRight, Lock, Zap, IndianRupee, PieChart, Activity, Wallet, ShieldCheck, Sun, Bot, Check, Play, Menu, X, Eye, Trash2 } from 'lucide-react';
 import AuthModal from '../components/AuthModal';
 import { auth, db } from '../lib/firebase';
 import { isSignInWithEmailLink, signInWithEmailLink, signOut } from 'firebase/auth';
@@ -588,7 +588,7 @@ export default function LandingPage() {
                   boxShadow: '3px 3px 0 rgba(255,255,255,0.3)',
                 }}
               >
-                🔒 Privacy First
+                <Lock size={14} strokeWidth={2.5} /> Privacy First
               </div>
               <h2
                 style={{
@@ -626,25 +626,25 @@ export default function LandingPage() {
             >
               {[
                 {
-                  icon: '🔐',
+                  icon: Lock,
                   title: 'AES-256 Encryption',
                   body: 'Your income, corpus, and savings are encrypted on your device before storage. We store only unreadable ciphertext — never plaintext.',
                   color: '#8B5CF6',
                 },
                 {
-                  icon: '👁️',
+                  icon: Eye,
                   title: 'We See Only Your Name',
                   body: 'Even as RetireSahi administrators, we can only see your first name. Every financial figure is encrypted and invisible to us.',
                   color: '#34D399',
                 },
                 {
-                  icon: '⚡',
+                  icon: Zap,
                   title: 'You Control Your AI',
                   body: 'Choose whether the AI uses your full profile or only computed insights. Change your mind anytime in Settings.',
                   color: '#FBBF24',
                 },
                 {
-                  icon: '🗑️',
+                  icon: Trash2,
                   title: 'Delete Everything',
                   body: 'Export your data as JSON or permanently delete your entire account and all associated data in one click from Settings.',
                   color: '#F472B6',
@@ -670,7 +670,9 @@ export default function LandingPage() {
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  <div style={{ fontSize: '2rem', marginBottom: 10 }}>{card.icon}</div>
+                  <div style={{ marginBottom: 10 }}>
+                    <card.icon size={28} color={card.color} strokeWidth={2.5} />
+                  </div>
                   <h3
                     style={{
                       fontFamily: 'Outfit',
@@ -711,11 +713,11 @@ export default function LandingPage() {
               }}
             >
               {[
-                '✓ DPDP Act 2023 Compliant',
-                '✓ Firebase Row-Level Security',
-                '✓ No Data Selling. Ever.',
-                '✓ Google Cloud Mumbai Region',
-                '✓ Groq SOC 2 Type II',
+                'DPDP Act 2023 Compliant',
+                'Firebase Row-Level Security',
+                'No Data Selling. Ever.',
+                'Google Cloud Mumbai Region',
+                'Groq SOC 2 Type II',
               ].map((item, i) => (
                 <span
                   key={i}
@@ -725,8 +727,12 @@ export default function LandingPage() {
                     color: 'rgba(255,255,255,0.5)',
                     fontFamily: 'Plus Jakarta Sans',
                     letterSpacing: '0.04em',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
                   }}
                 >
+                  <Check size={13} color="#34D399" strokeWidth={3} />
                   {item}
                 </span>
               ))}

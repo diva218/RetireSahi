@@ -155,10 +155,10 @@ export default function Learn() {
   };
 
   const categories = [
-    { id: 'basics', label: '📘 NPS Basics' },
-    { id: 'tax', label: '💰 Tax & Savings' },
-    { id: 'retirement', label: '🎯 At Retirement' },
-    { id: 'rules', label: '📋 Rules & Limits' }
+    { id: 'basics', label: 'NPS Basics', icon: Shield },
+    { id: 'tax', label: 'Tax & Savings', icon: Receipt },
+    { id: 'retirement', label: 'At Retirement', icon: ArrowUpFromLine },
+    { id: 'rules', label: 'Rules & Limits', icon: AlertCircle }
   ];
 
   return (
@@ -248,7 +248,10 @@ export default function Learn() {
                 onClick={() => scrollTo(cat.id)}
                 className={`touch-target flex-shrink-0 px-4 sm:px-6 py-2 rounded-full font-black uppercase tracking-widest text-[10px] sm:text-xs border-2 border-transparent transition-all cubic ${activeCategory === cat.id ? 'bg-[#8B5CF6] text-white border-[#1E293B] pop-shadow' : 'text-[#1E293B]/40 hover:bg-[#FBBF24] hover:text-[#1E293B] hover:border-[#1E293B]'}`}
               >
-                {cat.label}
+                <span className="inline-flex items-center gap-1.5">
+                  <cat.icon className="w-3 h-3" strokeWidth={2.5} />
+                  {cat.label}
+                </span>
               </button>
             ))}
          </div>
@@ -260,7 +263,10 @@ export default function Learn() {
          <section id="basics" className="scroll-mt-40 space-y-12">
             <div className="space-y-2">
                <h2 className="font-heading font-black text-4xl md:text-5xl uppercase tracking-widest text-[#1E293B] flex items-center gap-4">
-                  📘 NPS Basics
+                <span className="w-10 h-10 rounded-full border-2 border-[#1E293B] bg-[#8B5CF6]/15 flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-[#8B5CF6]" strokeWidth={2.5} />
+                </span>
+                NPS Basics
                </h2>
                <p className="font-bold text-[#1E293B]/40 uppercase tracking-[4px] text-xs">Start here if you're new to the system</p>
             </div>
@@ -348,7 +354,10 @@ export default function Learn() {
          <section id="tax" className="scroll-mt-40 space-y-12">
             <div className="space-y-2">
                <h2 className="font-heading font-black text-4xl md:text-5xl uppercase tracking-widest text-[#1E293B] flex items-center gap-4">
-                  💰 Tax & Savings
+                <span className="w-10 h-10 rounded-full border-2 border-[#1E293B] bg-[#FBBF24]/20 flex items-center justify-center">
+                  <Receipt className="w-5 h-5 text-[#FBBF24]" strokeWidth={2.5} />
+                </span>
+                Tax & Savings
                </h2>
                <p className="font-bold text-[#1E293B]/40 uppercase tracking-[4px] text-xs">The part most investors leave money on the table</p>
             </div>
@@ -419,7 +428,10 @@ export default function Learn() {
          <section id="retirement" className="scroll-mt-40 space-y-12">
             <div className="space-y-2">
                <h2 className="font-heading font-black text-4xl md:text-5xl uppercase tracking-widest text-[#1E293B] flex items-center gap-4">
-                  🎯 At Retirement
+                <span className="w-10 h-10 rounded-full border-2 border-[#1E293B] bg-[#34D399]/20 flex items-center justify-center">
+                  <ArrowUpFromLine className="w-5 h-5 text-[#34D399]" strokeWidth={2.5} />
+                </span>
+                At Retirement
                </h2>
                <p className="font-bold text-[#1E293B]/40 uppercase tracking-[4px] text-xs">The rules most people find out too late at age 60</p>
             </div>
@@ -473,7 +485,10 @@ export default function Learn() {
          <section id="rules" className="scroll-mt-40 space-y-12 pb-32">
             <div className="space-y-2">
                <h2 className="font-heading font-black text-4xl md:text-5xl uppercase tracking-widest text-[#1E293B] flex items-center gap-4">
-                  📋 Rules & Limits
+              <span className="w-10 h-10 rounded-full border-2 border-[#1E293B] bg-[#F472B6]/20 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-[#F472B6]" strokeWidth={2.5} />
+              </span>
+              Rules & Limits
                </h2>
                <p className="font-bold text-[#1E293B]/40 uppercase tracking-[4px] text-xs">The fine print that's actually useful</p>
             </div>

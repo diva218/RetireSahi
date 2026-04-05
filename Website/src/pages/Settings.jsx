@@ -234,7 +234,7 @@ const PageContent = () => {
       setEditingSection(null);
       
       if (newScore > oldScore) {
-        showToast(`Your score improved from ${oldScore} to ${newScore}! 🎉`, 'emerald');
+        showToast(`Your score improved from ${oldScore} to ${newScore}.`, 'emerald');
       } else if (newScore < oldScore) {
         showToast(`Your score dropped to ${newScore}. Check your biggest lever.`, 'pink');
       } else {
@@ -749,8 +749,8 @@ const PageContent = () => {
               <p className="font-heading font-bold text-[0.95rem] text-[#1E293B] mb-0.5">AI Data Mode</p>
               <p className="text-[0.8rem] text-[#64748B] font-['Plus_Jakarta_Sans']">
                 {userData.aiPrivacyMode === 'full'
-                  ? '⚡ Full Mode — Groq receives your complete financial profile'
-                  : '🔒 Privacy Mode — Groq sees only computed insights'}
+                  ? 'Full Mode — Groq receives your complete financial profile'
+                  : 'Privacy Mode — Groq sees only computed insights'}
               </p>
             </div>
             <button

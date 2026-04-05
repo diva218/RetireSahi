@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Home, Shield, Moon, Bot, Settings, TrendingUp, Target, Zap, 
   Clock, PiggyBank, Wallet, LogOut, Menu, X, Bell, ArrowRight,
-  ChevronUp, Sparkles, CheckCircle2, Info, BarChart2, HelpCircle
+   ChevronUp, Sparkles, CheckCircle2, Info, BarChart2, HelpCircle, Trophy
 } from 'lucide-react';
 import { auth, db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -123,7 +123,7 @@ const MilestoneItem = ({ milestone, age, achieved, color }) => (
        {achieved && <CheckCircle2 className="w-4 h-4" />}
     </div>
     <div className="mt-2 font-bold text-xs uppercase tracking-widest text-[#1E293B]/50">
-      {achieved ? '✓ Achieved' : `at age ${age}`}
+         {achieved ? 'Achieved' : `at age ${age}`}
     </div>
   </div>
 );
@@ -602,7 +602,7 @@ export default function Dashboard() {
                      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                         <div>
                          <div className="font-heading font-black text-2xl md:text-5xl text-[#1E293B] leading-none mb-2">
-                            {baseResults?.monthlyGap > 0 ? `${formatIndian(baseResults.monthlyGap)}/m more` : "You're all set! 🎉"}
+                            {baseResults?.monthlyGap > 0 ? `${formatIndian(baseResults.monthlyGap)}/m more` : "You're all set."}
                          </div>
                          <div className="text-xs md:text-sm font-bold text-[#1E293B]/70 uppercase tracking-widest leading-relaxed max-w-sm">
                             {baseResults?.monthlyGap > 0 
@@ -771,7 +771,9 @@ export default function Dashboard() {
             {/* 5. Corpus Milestone Timeline */}
             <section id="tour-milestones" className="space-y-6 overflow-hidden">
                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#1E293B] flex items-center justify-center text-lg md:text-xl shrink-0">🏆</div>
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#1E293B] flex items-center justify-center shrink-0">
+                     <Trophy className="w-4 h-4 md:w-5 md:h-5 text-white" strokeWidth={2.5} />
+                  </div>
                   <h2 className="font-heading font-extrabold text-xl md:text-3xl uppercase tracking-widest leading-none">Wealth Milestones <InfoTooltip text={DASHBOARD_TIPS.milestones} /></h2>
                </div>
                
@@ -819,7 +821,9 @@ export default function Dashboard() {
                   <div className="w-full h-1.5 md:h-2 bg-[#F472B6]" />
                   <div className="p-6 md:p-8 space-y-6">
                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#F472B6]/10 flex items-center justify-center border-2 border-[#1E293B] text-lg">🤖</div>
+                        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#F472B6]/10 flex items-center justify-center border-2 border-[#1E293B]">
+                           <Bot className="w-4 h-4 md:w-5 md:h-5 text-[#F472B6]" strokeWidth={2.5} />
+                        </div>
                         <h3 className="font-heading font-extrabold text-xl md:text-3xl text-[#1E293B] uppercase tracking-widest leading-none">AI Whisper</h3>
                      </div>
                      <p className="text-[#1E293B]/60 font-bold text-xs md:text-sm leading-relaxed">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Zap, Info } from 'lucide-react';
+import { Lock, Zap, Info, Sparkles, Check, X, ArrowDown } from 'lucide-react';
 
 export default function AIPrivacyChoice({ onSelect, firstName }) {
   const [hoveredOption, setHoveredOption] = useState(null);
@@ -93,10 +93,9 @@ export default function AIPrivacyChoice({ onSelect, firstName }) {
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 16px',
-              fontSize: '2rem',
             }}
           >
-            🔐
+            <Lock size={30} color="white" strokeWidth={2.5} />
           </div>
           <h1
             style={{
@@ -158,12 +157,14 @@ export default function AIPrivacyChoice({ onSelect, firstName }) {
                 fontWeight: 800,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
-                display: 'inline-block',
                 marginBottom: 10,
                 boxShadow: '2px 2px 0 #1E293B',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
               }}
             >
-              ✦ Recommended
+              <Sparkles size={12} strokeWidth={2.5} /> Recommended
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -219,7 +220,7 @@ export default function AIPrivacyChoice({ onSelect, firstName }) {
                     alignItems: 'flex-start',
                   }}
                 >
-                  <span style={{ color: '#34D399', fontWeight: 700, flexShrink: 0 }}>✓</span>
+                  <Check size={14} color="#34D399" strokeWidth={3} style={{ flexShrink: 0, marginTop: 2 }} />
                   {item}
                 </div>
               ))}
@@ -259,7 +260,7 @@ export default function AIPrivacyChoice({ onSelect, firstName }) {
                     alignItems: 'flex-start',
                   }}
                 >
-                  <span style={{ color: '#EF4444', fontWeight: 700, flexShrink: 0 }}>✗</span>
+                  <X size={14} color="#EF4444" strokeWidth={3} style={{ flexShrink: 0, marginTop: 2 }} />
                   {item}
                 </div>
               ))}
@@ -377,12 +378,14 @@ export default function AIPrivacyChoice({ onSelect, firstName }) {
                 fontWeight: 800,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',
-                display: 'inline-block',
                 marginBottom: 10,
                 boxShadow: '2px 2px 0 #1E293B',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
               }}
             >
-              ⚡ Most Personalized
+              <Zap size={12} strokeWidth={2.5} /> Most Personalized
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -438,9 +441,11 @@ export default function AIPrivacyChoice({ onSelect, firstName }) {
                     alignItems: 'flex-start',
                   }}
                 >
-                  <span style={{ color: i === 0 ? '#8B5CF6' : '#FBBF24', fontWeight: 700, flexShrink: 0 }}>
-                    {i === 0 ? '↓' : '✓'}
-                  </span>
+                  {i === 0 ? (
+                    <ArrowDown size={14} color="#8B5CF6" strokeWidth={3} style={{ flexShrink: 0, marginTop: 2 }} />
+                  ) : (
+                    <Check size={14} color="#FBBF24" strokeWidth={3} style={{ flexShrink: 0, marginTop: 2 }} />
+                  )}
                   {item}
                 </div>
               ))}
