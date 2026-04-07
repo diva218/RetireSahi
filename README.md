@@ -1,6 +1,6 @@
-# RetireSahi
+# NPS Pulse
 
-RetireSahi is a retirement intelligence product for Indian NPS subscribers. The website combines guided onboarding, a live retirement readiness dashboard, a custom lifestyle planning engine, an AI co-pilot, and transparent methodology pages into one continuous experience.
+NPS Pulse is a retirement intelligence product for Indian NPS subscribers. The website combines guided onboarding, a live retirement readiness dashboard, a custom lifestyle planning engine, an AI co-pilot, and transparent methodology pages into one continuous experience.
 
 This document describes what is already built and live in the product experience.
 

@@ -1,5 +1,5 @@
 ---
-title: RetireSahi Backend
+title: NPS Pulse Backend
 emoji: 🏦
 colorFrom: blue
 colorTo: green
@@ -7,7 +7,7 @@ sdk: docker
 pinned: false
 ---
 
-# RetireSahi Backend
+# NPS Pulse Backend
 
 RAG-powered NPS pension advisor API.
 
